@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import OurServices from './components/OurServices';
+import NotFound from './pages/NotFound';
 
 const theme = createTheme({
   palette: {
@@ -164,7 +165,7 @@ const App: React.FC = () => {
             
             {/* Redirects */}
             <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer />
         </AuthProvider>
