@@ -6,8 +6,6 @@ import {
   Grid,
   TextField,
   Button,
-  Card,
-  CardContent,
   useTheme,
   IconButton,
   Paper,
@@ -21,18 +19,15 @@ import {
   Twitter,
   LinkedIn,
   Instagram,
+  WhatsApp,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { useCodeProtection } from '../hooks/useCodeProtection';
 import emailjs from '@emailjs/browser';
 
 const Contact: React.FC = () => {
   useCodeProtection();
   const theme = useTheme();
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const form = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -86,17 +81,6 @@ const Contact: React.FC = () => {
       opacity: 1,
       transition: {
         staggerChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
       },
     },
   };
@@ -319,6 +303,28 @@ const Contact: React.FC = () => {
                           fullWidth
                         >
                           Send Message
+                        </Button>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Button
+                          variant="outlined"
+                          color="success"
+                          size="large"
+                          fullWidth
+                          startIcon={<WhatsApp />}
+                          href="https://wa.me/201067283396?text=Hello%20MarknCode%20Agency,%20I%20would%20like%20to%20inquire%20about%20your%20services"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{
+                            borderColor: '#25D366',
+                            color: '#128C7E',
+                            '&:hover': {
+                              borderColor: '#128C7E',
+                              backgroundColor: 'rgba(37, 211, 102, 0.08)',
+                            },
+                          }}
+                        >
+                          Or Chat Directly on WhatsApp
                         </Button>
                       </Grid>
                     </Grid>

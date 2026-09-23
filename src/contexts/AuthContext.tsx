@@ -7,7 +7,6 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   updateProfile,
-  GoogleAuthProvider,
   signInWithPopup,
   AuthError,
   browserPopupRedirectResolver

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useCodeProtection } from '../hooks/useCodeProtection';
 import {
   Container,
@@ -8,12 +7,10 @@ import {
   Grid,
   Card,
   CardContent,
-  CardMedia,
   Button,
   useTheme,
   Chip,
 } from '@mui/material';
-import { motion } from 'framer-motion';
 import {
   Code as CodeIcon,
   CameraAlt as CameraIcon,
@@ -53,29 +50,41 @@ import {
   Groups as CommunityIcon,
   Instagram as InstagramIcon,
   Facebook as FacebookIcon,
-  Twitter as TwitterIcon,
   LinkedIn as LinkedInIcon,
   YouTube as YouTubeIcon,
   SmartDisplay as SmartDisplayIcon,
   Pinterest as PinterestIcon,
-  Reddit as RedditIcon,
-  Telegram as TelegramIcon,
   WhatsApp as WhatsAppIcon,
   Google as GoogleIcon,
+  OpenInNew as LaunchIcon,
 } from '@mui/icons-material';
 
 const OurServices: React.FC = () => {
-  const { user } = useAuth();
   const theme = useTheme();
   useCodeProtection();
 
   const handleGetStarted = (serviceName: string) => {
     const message = `Hi! I'm interested in your ${serviceName} service. Can you tell me more about it?`;
     const encodedMessage = encodeURIComponent(message);
-    window.open(`https://m.me/61575849693891?text=${encodedMessage}`, '_blank');
+    window.open(`https://wa.me/201067283396?text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
   };
 
   const services = [
+    {
+      title: 'MarknCode Bot for Doctor',
+      description: 'Specialized AI medical assistant for clinics and doctors with 24/7 WhatsApp and Web integration',
+      icon: <AIIcon sx={{ fontSize: 40, color: 'primary.main' }} />,
+      isBot: true,
+      botUrl: 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/',
+      features: [
+        'Automated Appointments',
+        '24/7 WhatsApp Chatbot',
+        'Smart Medical Triage',
+        'Doctor Instant Alerts',
+        'Zero Wait Times',
+        'Multi-lingual Support'
+      ]
+    },
     {
       title: 'Digital Marketing',
       description: 'Comprehensive digital marketing solutions to maximize your online presence and ROI',
@@ -1030,16 +1039,30 @@ const OurServices: React.FC = () => {
                     <Button
                       variant="contained"
                       fullWidth
-                    onClick={() => handleGetStarted(service.title)}
-                    startIcon={<FacebookIcon />}
+                      onClick={() =>
+                        service.isBot
+                          ? window.open(service.botUrl, '_blank', 'noopener,noreferrer')
+                          : handleGetStarted(service.title)
+                      }
+                      startIcon={service.isBot ? <AIIcon /> : <FacebookIcon />}
+                      endIcon={service.isBot ? <LaunchIcon sx={{ fontSize: 16 }} /> : undefined}
                       sx={{
-                        background: 'linear-gradient(45deg, #2563eb 30%, #1d4ed8 90%)',
+                        borderRadius: '25px',
+                        py: 1,
+                        fontWeight: 700,
+                        textTransform: 'none',
+                        background: service.isBot
+                          ? 'linear-gradient(45deg, #2563eb 30%, #7c3aed 90%)'
+                          : 'linear-gradient(45deg, #2563eb 30%, #1d4ed8 90%)',
+                        boxShadow: service.isBot ? '0 4px 12px rgba(37, 99, 235, 0.3)' : undefined,
                         '&:hover': {
-                          background: 'linear-gradient(45deg, #1d4ed8 30%, #1e40af 90%)',
+                          background: service.isBot
+                            ? 'linear-gradient(45deg, #1d4ed8 30%, #6d28d9 90%)'
+                            : 'linear-gradient(45deg, #1d4ed8 30%, #1e40af 90%)',
                         },
                       }}
                     >
-                      Get Started
+                      {service.isBot ? 'Open MarknCode Bot for Doctor' : 'Get Started'}
                     </Button>
                   </CardContent>
                 </Card>

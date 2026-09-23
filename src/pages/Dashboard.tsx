@@ -1,11 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Box, 
   Container, 
   Grid, 
   Paper, 
   Typography, 
-  useTheme,
   TextField,
   Button,
   Alert,
@@ -17,10 +16,8 @@ import {
   Chip,
   CircularProgress,
   Tooltip,
-  alpha
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
-import { useTranslation } from 'react-i18next';
 import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from '@firebase/auth';
 import { auth } from '../firebase';
 import LockIcon from '@mui/icons-material/Lock';
@@ -34,7 +31,6 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import PhoneIcon from '@mui/icons-material/Phone';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LanguageIcon from '@mui/icons-material/Language';
-import { useNavigate } from 'react-router-dom';
 
 interface UserProfile {
   email: string;
@@ -46,18 +42,6 @@ interface UserProfile {
   language?: string;
 }
 
-interface FormState {
-  password: string;
-  newPassword: string;
-  confirmPassword: string;
-  email: string;
-  name: string;
-  phone: string;
-  birthday: string;
-  gender: string;
-  location: string;
-  language: string;
-}
 
 interface FormErrors {
   password?: string;
@@ -74,8 +58,6 @@ interface FormErrors {
 
 // Components
 const ProfileHeader: React.FC<{ user: any }> = ({ user }) => {
-  const theme = useTheme();
-  
   return (
     <Box 
       sx={{ 
@@ -171,8 +153,6 @@ const PasswordForm: React.FC<{
   onSubmit: (data: { password: string; newPassword: string; confirmPassword: string }) => Promise<void>;
   isLoading: boolean;
 }> = ({ onSubmit, isLoading }) => {
-  const theme = useTheme();
-  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     password: '',
     newPassword: '',
@@ -357,8 +337,6 @@ const UserInfoForm: React.FC<{
   isLoading: boolean;
   initialData: UserProfile;
 }> = ({ onSubmit, isLoading, initialData }) => {
-  const theme = useTheme();
-  const { t } = useTranslation();
   const [formData, setFormData] = useState(initialData);
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -618,61 +596,10 @@ const UserInfoForm: React.FC<{
 };
 
 const Dashboard: React.FC = () => {
-  const theme = useTheme();
-  const { t } = useTranslation();
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    // Handle page reload
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      sessionStorage.setItem('lastPath', window.location.pathname);
-    };
-
-    const handleLoad = () => {
-      const lastPath = sessionStorage.getItem('lastPath');
-      if (lastPath && lastPath === '/dashboard') {
-        navigate('/home');
-      }
-      sessionStorage.removeItem('lastPath');
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('load', handleLoad);
-
-    // Prevent right click
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-
-    // Prevent keyboard shortcuts
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        (e.ctrlKey && (e.key === 'u' || e.key === 'U')) || // Ctrl+U
-        (e.ctrlKey && e.shiftKey && (e.key === 'i' || e.key === 'I')) || // Ctrl+Shift+I
-        (e.ctrlKey && e.shiftKey && (e.key === 'j' || e.key === 'J')) || // Ctrl+Shift+J
-        (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) || // Ctrl+Shift+C
-        (e.key === 'F12') // F12
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    // Add event listeners
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('keydown', handleKeyDown);
-
-    // Cleanup
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('load', handleLoad);
-    };
-  }, [navigate]);
 
   const handlePasswordChange = async (data: { password: string; newPassword: string; confirmPassword: string }) => {
     setError(null);
