@@ -37,7 +37,7 @@ import LoginIcon from '@mui/icons-material/LoginRounded';
 import PersonAddIcon from '@mui/icons-material/PersonAddRounded';
 import { useAuth } from '../contexts/AuthContext';
 
-const BOT_URL = 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/';
+const BOT_URL = 'https://ipaq-rat-craig-hair.trycloudflare.com/';
 
 const Navbar: React.FC = () => {
   const { user, signOut } = useAuth();

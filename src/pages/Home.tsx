@@ -31,7 +31,7 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-const BOT_URL = 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/';
+const BOT_URL = 'https://ipaq-rat-craig-hair.trycloudflare.com/';
 
 const Home: React.FC = () => {
   useCodeProtection();

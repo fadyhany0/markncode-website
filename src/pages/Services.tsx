@@ -23,7 +23,7 @@ import BotIcon from '@mui/icons-material/SmartToy';
 import ArrowIcon from '@mui/icons-material/ArrowForward';
 import CheckIcon from '@mui/icons-material/CheckCircle';
 
-const BOT_URL = 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/';
+const BOT_URL = 'https://ipaq-rat-craig-hair.trycloudflare.com/';
 
 const Services: React.FC = () => {
   useCodeProtection();

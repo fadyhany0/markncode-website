@@ -75,7 +75,7 @@ const OurServices: React.FC = () => {
       description: 'Specialized AI medical assistant for clinics and doctors with 24/7 WhatsApp and Web integration',
       icon: <AIIcon sx={{ fontSize: 40, color: 'primary.main' }} />,
       isBot: true,
-      botUrl: 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/',
+      botUrl: 'https://ipaq-rat-craig-hair.trycloudflare.com/',
       features: [
         'Automated Appointments',
         '24/7 WhatsApp Chatbot',

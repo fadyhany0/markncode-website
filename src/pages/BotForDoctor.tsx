@@ -39,7 +39,7 @@ import {
 import { motion } from 'framer-motion';
 import { useCodeProtection } from '../hooks/useCodeProtection';
 
-const BOT_URL = 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/';
+const BOT_URL = 'https://ipaq-rat-craig-hair.trycloudflare.com/';
 
 const BotForDoctor: React.FC = () => {
   useCodeProtection();

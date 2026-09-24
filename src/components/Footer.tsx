@@ -110,7 +110,7 @@ const Footer: React.FC = () => {
               {[
                 { text: 'Home', href: '/' },
                 { text: 'Services', href: '/services' },
-                { text: 'Bot for Doctor ↗', href: 'https://fusion-expenditures-quickly-psychological.trycloudflare.com/', target: '_blank', isHighlight: true },
+                { text: 'Bot for Doctor ↗', href: 'https://ipaq-rat-craig-hair.trycloudflare.com/', target: '_blank', isHighlight: true },
                 { text: 'About Agency', href: '/about' },
                 { text: 'Contact Us', href: '/contact' },
               ].map((link) => (
