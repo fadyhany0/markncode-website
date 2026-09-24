@@ -110,10 +110,10 @@ const Footer: React.FC = () => {
               {[
                 { text: 'Home', href: '/' },
                 { text: 'Services', href: '/services' },
-                { text: 'Bot for Doctor ↗', href: 'https://ipaq-rat-craig-hair.trycloudflare.com/', target: '_blank', isHighlight: true },
+                { text: 'Bot for Doctor 🤖', href: '/bot-for-doctor', isHighlight: true },
                 { text: 'About Agency', href: '/about' },
                 { text: 'Contact Us', href: '/contact' },
-              ].map((link) => (
+              ].map((link: { text: string; href: string; isHighlight?: boolean; target?: string }) => (
                 <Box component="li" key={link.text} sx={{ mb: 1.5 }}>
                   <Link
                     href={link.href}

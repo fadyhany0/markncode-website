@@ -24,7 +24,6 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import BotIcon from '@mui/icons-material/SmartToy';
-import LaunchIcon from '@mui/icons-material/OpenInNew';
 import DashboardIcon from '@mui/icons-material/DashboardRounded';
 import LogoutIcon from '@mui/icons-material/LogoutRounded';
 import ArrowDownIcon from '@mui/icons-material/KeyboardArrowDownRounded';
@@ -36,8 +35,6 @@ import ContactMailIcon from '@mui/icons-material/ContactMailRounded';
 import LoginIcon from '@mui/icons-material/LoginRounded';
 import PersonAddIcon from '@mui/icons-material/PersonAddRounded';
 import { useAuth } from '../contexts/AuthContext';
-
-const BOT_URL = 'https://ipaq-rat-craig-hair.trycloudflare.com/';
 
 const Navbar: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -74,6 +71,7 @@ const Navbar: React.FC = () => {
 
   const navItems = [
     { text: 'Home', path: '/home', icon: <HomeIcon fontSize="small" /> },
+    { text: 'Bot for Doctor', path: '/bot-for-doctor', icon: <BotIcon fontSize="small" /> },
     { text: 'Services', path: '/services', icon: <ServicesIcon fontSize="small" /> },
     { text: 'All Services', path: '/our-services', icon: <AppsIcon fontSize="small" /> },
     { text: 'About', path: '/about', icon: <InfoIcon fontSize="small" /> },
@@ -196,11 +194,10 @@ const Navbar: React.FC = () => {
           <Button
             fullWidth
             onClick={() => {
-              window.open(BOT_URL, '_blank', 'noopener,noreferrer');
+              navigate('/bot-for-doctor');
               handleDrawerToggle();
             }}
             startIcon={<BotIcon />}
-            endIcon={<LaunchIcon sx={{ fontSize: 16 }} />}
             sx={{
               py: 1.2,
               px: 2,
@@ -457,9 +454,8 @@ const Navbar: React.FC = () => {
 
                 {/* MarknCode Bot for Doctor Button (Glowing Desktop Pill) */}
                 <Button
-                  onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                  onClick={() => navigate('/bot-for-doctor')}
                   startIcon={<BotIcon sx={{ fontSize: 18 }} />}
-                  endIcon={<LaunchIcon sx={{ fontSize: 13 }} />}
                   sx={{
                     background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
                     color: 'white',

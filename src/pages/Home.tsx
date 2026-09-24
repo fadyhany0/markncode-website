@@ -31,8 +31,6 @@ import {
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-const BOT_URL = 'https://ipaq-rat-craig-hair.trycloudflare.com/';
-
 const Home: React.FC = () => {
   useCodeProtection();
   const theme = useTheme();
@@ -244,7 +242,7 @@ const Home: React.FC = () => {
                     <Button
                       variant="contained"
                       size="large"
-                      onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                      onClick={() => navigate('/bot-for-doctor')}
                       startIcon={<BotIcon />}
                       endIcon={<LaunchIcon sx={{ fontSize: 16 }} />}
                       sx={{
@@ -391,7 +389,7 @@ const Home: React.FC = () => {
                       <Button
                         fullWidth
                         variant="contained"
-                        onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                        onClick={() => navigate('/bot-for-doctor')}
                         endIcon={<LaunchIcon />}
                         sx={{
                           py: 1.2,
@@ -548,7 +546,7 @@ const Home: React.FC = () => {
                     <Button
                       variant="contained"
                       size="large"
-                      onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                      onClick={() => navigate('/bot-for-doctor')}
                       endIcon={<LaunchIcon />}
                       sx={{
                         py: 1.5,
@@ -688,7 +686,7 @@ const Home: React.FC = () => {
                   <Button
                     fullWidth
                     variant="contained"
-                    onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                    onClick={() => navigate('/bot-for-doctor')}
                     endIcon={<LaunchIcon />}
                     sx={{
                       py: 1.3,
@@ -806,7 +804,7 @@ const Home: React.FC = () => {
                         <Button
                           fullWidth
                           variant="contained"
-                          onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                          onClick={() => navigate('/bot-for-doctor')}
                           endIcon={<LaunchIcon sx={{ fontSize: 16 }} />}
                           sx={{
                             mt: 2.5,
@@ -953,7 +951,7 @@ const Home: React.FC = () => {
               <Button
                 variant="outlined"
                 size="large"
-                onClick={() => window.open(BOT_URL, '_blank', 'noopener,noreferrer')}
+                onClick={() => navigate('/bot-for-doctor')}
                 endIcon={<LaunchIcon />}
                 sx={{
                   color: 'white',

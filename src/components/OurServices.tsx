@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCodeProtection } from '../hooks/useCodeProtection';
 import {
   Container,
@@ -56,11 +57,11 @@ import {
   Pinterest as PinterestIcon,
   WhatsApp as WhatsAppIcon,
   Google as GoogleIcon,
-  OpenInNew as LaunchIcon,
 } from '@mui/icons-material';
 
 const OurServices: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   useCodeProtection();
 
   const handleGetStarted = (serviceName: string) => {
@@ -1042,11 +1043,11 @@ const OurServices: React.FC = () => {
                       fullWidth
                       onClick={() =>
                         service.isBot
-                          ? window.open(service.botUrl, '_blank', 'noopener,noreferrer')
+                          ? navigate('/bot-for-doctor')
                           : handleGetStarted(service.title)
                       }
                       startIcon={service.isBot ? <AIIcon /> : <FacebookIcon />}
-                      endIcon={service.isBot ? <LaunchIcon sx={{ fontSize: 16 }} /> : undefined}
+                      endIcon={service.isBot ? undefined : undefined}
                       sx={{
                         borderRadius: '25px',
                         py: 1,

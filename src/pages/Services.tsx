@@ -18,7 +18,6 @@ import {
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import LaunchIcon from '@mui/icons-material/OpenInNew';
 import BotIcon from '@mui/icons-material/SmartToy';
 import ArrowIcon from '@mui/icons-material/ArrowForward';
 import CheckIcon from '@mui/icons-material/CheckCircle';
@@ -298,8 +297,8 @@ const Services: React.FC = () => {
                         <Button
                           fullWidth
                           variant="contained"
-                          onClick={() => window.open(service.botUrl, '_blank', 'noopener,noreferrer')}
-                          endIcon={<LaunchIcon />}
+                          onClick={() => navigate('/bot-for-doctor')}
+                          endIcon={<ArrowIcon />}
                           sx={{
                             py: 1.3,
                             borderRadius: '50px',
@@ -309,7 +308,7 @@ const Services: React.FC = () => {
                             boxShadow: '0 8px 20px rgba(37, 99, 235, 0.35)',
                           }}
                         >
-                          Open MarknCode Bot for Doctor ↗
+                          Explore Bot & Autonomous Sales 🤖
                         </Button>
                       ) : (
                         <Button
