@@ -41,14 +41,15 @@ const Services: React.FC = () => {
       isBot: true,
       botUrl: BOT_URL,
       description:
-        'Specialized AI medical assistant designed for doctors and clinics. Automates patient appointment bookings, handles WhatsApp inquiries 24/7, and organizes clinical intake.',
+        'Specialized AI medical assistant designed for doctors and clinics. Automates patient appointment bookings, handles WhatsApp inquiries 24/7, collects payments via InstaPay & cards, and autonomously sells clinic packages.',
       image:
         'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&h=600&q=80',
       features: [
         '24/7 WhatsApp & Web Chatbot',
-        'Automated Appointment Booking',
-        'Patient Symptom Triage',
-        'Instant Doctor Notifications',
+        'Automated Appointments & InstaPay Payments',
+        'Autonomous Medical Package & Offer Sales',
+        'Abandoned Booking Lead Recovery Funnel',
+        'Patient Triage & Instant Doctor Alerts',
       ],
       accentColor: '#2563eb',
     },

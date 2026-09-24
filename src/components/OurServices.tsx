@@ -77,12 +77,13 @@ const OurServices: React.FC = () => {
       isBot: true,
       botUrl: 'https://ipaq-rat-craig-hair.trycloudflare.com/',
       features: [
-        'Automated Appointments',
-        '24/7 WhatsApp Chatbot',
-        'Smart Medical Triage',
-        'Doctor Instant Alerts',
-        'Zero Wait Times',
-        'Multi-lingual Support'
+        'Automated Appointments & Booking',
+        'Autonomous Payments & InstaPay Collection',
+        'Sells Clinic Packages & Offers 24/7',
+        '24/7 WhatsApp & Web AI Assistant',
+        'Smart Medical Triage & Alerts',
+        'Abandoned Booking Recovery Funnel',
+        'Multi-lingual (Arabic & English)'
       ]
     },
     {
