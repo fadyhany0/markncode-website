@@ -59,6 +59,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   PaymentOrderData,
   getAllPaymentOrders,
+  syncOrdersFromCloud,
   approvePaymentOrder,
   rejectPaymentOrder,
   manualActivateUser,
@@ -152,9 +153,14 @@ const AdminPayments: React.FC = () => {
   const [snackbarMsg, setSnackbarMsg] = useState<string>('');
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
 
-  // Load and refresh all system data
+  // Load and refresh all system data from cache and cloud
   const refreshAllData = () => {
     setOrders(getAllPaymentOrders());
+    syncOrdersFromCloud().then((cloudList) => {
+      if (cloudList && cloudList.length >= 0) {
+        setOrders(cloudList);
+      }
+    });
     setUsersList(getAllManagedUsers());
     setInquiriesList(getAllInquiries());
     setCampaignLogs(getSavedCampaignLogs());

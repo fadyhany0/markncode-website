@@ -48,9 +48,10 @@ export const ADMIN_CONFIG = {
 
 const STORAGE_KEY_ALL_ORDERS = 'mnc_all_orders_registry';
 const STORAGE_KEY_USER_PREFIX = 'mnc_pay_active_';
+const CLOUD_SYNC_ENDPOINT = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0df95f9102042';
 
 /**
- * Returns all payment orders sorted newest first
+ * Returns all payment orders from local cache sorted newest first
  */
 export function getAllPaymentOrders(): PaymentOrderData[] {
   try {
@@ -60,6 +61,57 @@ export function getAllPaymentOrders(): PaymentOrderData[] {
     return Array.isArray(list) ? list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
   } catch (e) {
     return [];
+  }
+}
+
+/**
+ * Synchronizes orders with the cloud database so all devices and the admin dashboard see incoming orders in real-time
+ */
+export async function syncOrdersFromCloud(): Promise<PaymentOrderData[]> {
+  try {
+    const res = await fetch(CLOUD_SYNC_ENDPOINT, { cache: 'no-store' });
+    if (!res.ok) return getAllPaymentOrders();
+    const json = await res.json();
+    const cloudOrders = json?.data?.orders;
+    if (Array.isArray(cloudOrders)) {
+      const local = getAllPaymentOrders();
+      const map = new Map<string, PaymentOrderData>();
+      local.forEach((o) => map.set(o.orderId, o));
+      cloudOrders.forEach((o: PaymentOrderData) => {
+        const existing = map.get(o.orderId);
+        if (!existing || new Date(o.createdAt || 0).getTime() >= new Date(existing.createdAt || 0).getTime()) {
+          map.set(o.orderId, o);
+        }
+      });
+      const merged = Array.from(map.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(merged));
+      return merged;
+    }
+  } catch (e) {
+    console.warn('Cloud sync error, using local orders:', e);
+  }
+  return getAllPaymentOrders();
+}
+
+/**
+ * Pushes updated orders array to cloud database
+ */
+export async function pushOrdersToCloud(orders: PaymentOrderData[]): Promise<boolean> {
+  try {
+    const res = await fetch(CLOUD_SYNC_ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'markncode_orders',
+        data: { orders },
+      }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn('Cloud push error:', e);
+    return false;
   }
 }
 
@@ -75,7 +127,7 @@ function saveOrderToRegistry(order: PaymentOrderData): void {
 }
 
 /**
- * Builds a direct WhatsApp notification link for the admin
+ * Builds a direct WhatsApp notification link for the admin WITHOUT exposing any admin URLs to the client
  */
 export function buildWhatsAppNotificationUrl(
   orderId: string,
@@ -84,29 +136,24 @@ export function buildWhatsAppNotificationUrl(
   senderPhone: string,
   paymentMethod: PaymentMethod
 ): string {
-  const origin = window.location.origin;
-  const adminUrl = `${origin}/admin`;
   const methodLabel = paymentMethod === 'vodafone_cash' ? 'فودافون كاش 🔴' : 'انستا باي 🟣';
 
   const text = `🚨 *طلب تفعيل صانع الإعلانات (200 ج.م) - MarkNCode*
 ━━━━━━━━━━━━━━━━━━━━
 👤 *العميل:* ${userName || userEmail}
-📧 *البريد:* ${userEmail}
-💳 *وسيلة الدفع:* ${methodLabel}
+📧 *البريد الإلكتروني:* ${userEmail}
+💳 *طريقة الدفع:* ${methodLabel}
 📱 *الرقم المحول منه:* ${senderPhone}
 💰 *المبلغ:* 200 جنيه مصري
 🔢 *رقم الطلب:* ${orderId}
-
-🔗 *رابط لوحة تحكم الإدارة للتفعيل:*
-${adminUrl}
-
-قم بالدخول لصفحة الإدارة وضغط "موافق وتفعيل" لفتح الأداة للعميل فوراً!`;
+━━━━━━━━━━━━━━━━━━━━
+تم تحويل المبلغ وتأكيد الطلب من الموقع، برجاء تفعيل الحساب.`;
 
   return `https://wa.me/201067283396?text=${encodeURIComponent(text)}`;
 }
 
 /**
- * Creates a new payment order, stores in central registry, and sends email notification to admin
+ * Creates a new payment order, stores in central registry & cloud database, and sends email notification to admin
  */
 export async function submitPaymentTransferRequest(params: {
   userEmail: string;
@@ -130,7 +177,7 @@ export async function submitPaymentTransferRequest(params: {
     createdAt: new Date().toISOString(),
   };
 
-  // 1. Save to central registry and user active session
+  // 1. Save to local registry and user active session immediately
   saveOrderToRegistry(orderPayload);
   const localRecord: PaymentOrder = {
     cloudId: orderId,
@@ -142,7 +189,15 @@ export async function submitPaymentTransferRequest(params: {
     localStorage.setItem(`mnc_order_${orderId}`, JSON.stringify(localRecord));
   } catch (e) {}
 
-  // 2. Broadcast across tabs in real-time
+  // 2. Sync to cloud database so the admin page on any device receives it immediately
+  try {
+    const cloudOrders = await syncOrdersFromCloud();
+    const filtered = cloudOrders.filter((o) => o.orderId !== orderId);
+    filtered.unshift(orderPayload);
+    await pushOrdersToCloud(filtered);
+  } catch (e) {}
+
+  // 3. Broadcast across tabs in real-time
   try {
     const bc = new BroadcastChannel('mnc_payment_sync');
     bc.postMessage({ action: 'NEW_ORDER', order: orderPayload });
@@ -219,7 +274,7 @@ ${adminDashboardUrl}
  * Checks the status of a payment order for the client
  */
 export async function checkPaymentStatus(orderId?: string, userEmail?: string): Promise<PaymentOrderData | null> {
-  // 1. Direct approval flags
+  // 1. Direct approval flags in local storage (fast path)
   if (orderId) {
     const approvedFlag = localStorage.getItem(`mnc_approved_${orderId}`);
     if (approvedFlag === 'true') {
@@ -254,7 +309,7 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
     }
   }
 
-  // 2. Check user-level approved flag
+  // 2. Check user-level approved flag in local storage
   if (userEmail) {
     const userApprovedFlag = localStorage.getItem(`mnc_approved_user_${userEmail}`);
     if (userApprovedFlag === 'true') {
@@ -271,14 +326,33 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
     }
   }
 
-  // 3. Check central registry
+  // 3. Query cloud database so client detects when admin approves from another device!
+  try {
+    const cloudOrders = await syncOrdersFromCloud();
+    const found = cloudOrders.find(
+      (o) =>
+        (orderId && o.orderId === orderId) ||
+        (userEmail && o.userEmail.toLowerCase() === userEmail.toLowerCase())
+    );
+    if (found) {
+      if (found.status === 'approved') {
+        if (orderId) localStorage.setItem(`mnc_approved_${orderId}`, 'true');
+        if (userEmail) localStorage.setItem(`mnc_approved_user_${userEmail}`, 'true');
+      } else if (found.status === 'rejected') {
+        if (orderId) localStorage.setItem(`mnc_rejected_${orderId}`, 'true');
+      }
+      return found;
+    }
+  } catch (e) {}
+
+  // 4. Fallback to local registry
   const all = getAllPaymentOrders();
   if (orderId) {
     const found = all.find((o) => o.orderId === orderId);
     if (found) return found;
   }
   if (userEmail) {
-    const foundByUser = all.find((o) => o.userEmail === userEmail);
+    const foundByUser = all.find((o) => o.userEmail.toLowerCase() === userEmail.toLowerCase());
     if (foundByUser) return foundByUser;
   }
 
@@ -294,7 +368,7 @@ export function approvePaymentOrder(orderId: string, userEmail?: string): boolea
     const target = all.find((o) => o.orderId === orderId);
     const email = userEmail || target?.userEmail;
 
-    // Update in registry
+    // Update in local registry
     if (target) {
       target.status = 'approved';
       target.approvedAt = new Date().toISOString();
@@ -314,6 +388,20 @@ export function approvePaymentOrder(orderId: string, userEmail?: string): boolea
         localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${email}`, JSON.stringify(parsed));
       }
     }
+
+    // Push update to cloud database so client's device unlocks immediately
+    syncOrdersFromCloud().then((cloudOrders) => {
+      const cloudTarget = cloudOrders.find(
+        (o) => o.orderId === orderId || (email && o.userEmail.toLowerCase() === email.toLowerCase())
+      );
+      if (cloudTarget) {
+        cloudTarget.status = 'approved';
+        cloudTarget.approvedAt = new Date().toISOString();
+      } else if (target) {
+        cloudOrders.unshift(target);
+      }
+      pushOrdersToCloud(cloudOrders);
+    });
 
     // Broadcast in real time to all open client tabs
     try {
@@ -355,6 +443,17 @@ export function rejectPaymentOrder(orderId: string, userEmail?: string): boolean
       }
     }
 
+    // Push rejection to cloud database
+    syncOrdersFromCloud().then((cloudOrders) => {
+      const cloudTarget = cloudOrders.find(
+        (o) => o.orderId === orderId || (email && o.userEmail.toLowerCase() === email.toLowerCase())
+      );
+      if (cloudTarget) {
+        cloudTarget.status = 'rejected';
+      }
+      pushOrdersToCloud(cloudOrders);
+    });
+
     try {
       const bc = new BroadcastChannel('mnc_payment_sync');
       bc.postMessage({ action: 'REJECTED', orderId, userEmail: email });
@@ -392,6 +491,13 @@ export function manualActivateUser(userEmail: string, userName?: string): boolea
     localStorage.setItem(`mnc_approved_${orderId}`, 'true');
     localStorage.setItem(`mnc_approved_user_${trimmed}`, 'true');
     localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${trimmed}`, JSON.stringify({ cloudId: orderId, data: manualOrder }));
+
+    // Push to cloud database
+    syncOrdersFromCloud().then((cloudOrders) => {
+      const filtered = cloudOrders.filter((o) => o.userEmail.toLowerCase() !== trimmed);
+      filtered.unshift(manualOrder);
+      pushOrdersToCloud(filtered);
+    });
 
     try {
       const bc = new BroadcastChannel('mnc_payment_sync');
