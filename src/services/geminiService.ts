@@ -1,8 +1,14 @@
 // Gemini AI Integration Service for MarkNCode AI Ad Studio
 // Powered by Google Gemini API (gemini-flash-latest, gemini-3.8-flash)
 
-export const GEMINI_API_KEY =
-  process.env.REACT_APP_GEMINI_API_KEY || '';
+export const getGeminiApiKey = (): string => {
+  return (
+    (typeof window !== 'undefined' && localStorage.getItem('mnc_gemini_api_key')) ||
+    process.env.REACT_APP_GEMINI_API_KEY ||
+    ''
+  );
+};
+export const GEMINI_API_KEY = getGeminiApiKey();
 
 export type BusinessType = string;
 export type PricePoint = 'economic' | 'mid' | 'luxury';
@@ -649,26 +655,28 @@ ${JSON.stringify(payload.specifics, null, 2)}
 \`\`\`
 `;
 
-  try {
-    const rawText = await callGeminiApiWithFallback(prompt, GEMINI_API_KEY);
-    const cleaned = rawText
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .trim();
+  const apiKey = getGeminiApiKey();
+  if (apiKey) {
+    try {
+      const rawText = await callGeminiApiWithFallback(prompt, apiKey);
+      const cleaned = rawText
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
 
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-      const jsonSub = cleaned.substring(firstBrace, lastBrace + 1);
-      const parsed = JSON.parse(jsonSub) as GeneratedGeminiCampaign;
-      parsed.isLiveGemini = true;
-      return parsed;
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        const jsonSub = cleaned.substring(firstBrace, lastBrace + 1);
+        const parsed = JSON.parse(jsonSub) as GeneratedGeminiCampaign;
+        parsed.isLiveGemini = true;
+        return parsed;
+      }
+    } catch (err: any) {
+      console.warn('Gemini live API call encountered issue, activating intelligent local engine:', err.message);
     }
-    throw new Error('Invalid JSON structure returned by Gemini');
-  } catch (err: any) {
-    console.warn('Gemini live API call encountered issue, activating intelligent local engine:', err.message);
-    return buildIntelligentFallbackCampaign(payload);
   }
+  return buildIntelligentFallbackCampaign(payload);
 }
 
 /**
@@ -1115,28 +1123,31 @@ ${campaignSummary}
     { role: 'user', parts: [{ text: userQuestion }] },
   ];
 
-  for (const model of CANDIDATE_MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: conversationParts,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-          },
-        }),
-      });
+  const apiKey = getGeminiApiKey();
+  if (apiKey) {
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: conversationParts,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            },
+          }),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return text;
+        if (response.ok) {
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text;
+        }
+      } catch (err: any) {
+        console.warn(`Chat model ${model} failed:`, err.message);
       }
-    } catch (err: any) {
-      console.warn(`Chat model ${model} failed:`, err.message);
     }
   }
 
