@@ -7,10 +7,12 @@ import {
   Box,
   Grid,
   Card,
-  CardContent,
   Button,
   useTheme,
   Chip,
+  alpha,
+  Paper,
+  Stack,
 } from '@mui/material';
 import {
   Code as CodeIcon,
@@ -50,7 +52,6 @@ import {
   Psychology as PsychologyIcon,
   Groups as CommunityIcon,
   Instagram as InstagramIcon,
-  Facebook as FacebookIcon,
   LinkedIn as LinkedInIcon,
   YouTube as YouTubeIcon,
   SmartDisplay as SmartDisplayIcon,
@@ -987,91 +988,288 @@ const OurServices: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ py: 8, background: '#f8f9fa' }}>
-      <Container maxWidth="lg">
-        <Typography
-          variant="h3"
-          component="h2"
-          align="center"
-          sx={{
-            mb: 6,
-            fontWeight: 700,
-            color: '#202124',
-            fontFamily: 'Google Sans, Roboto, Arial, sans-serif',
-          }}
-        >
-          Our Services
-        </Typography>
-        <Grid container spacing={4}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 12 }}>
+      {/* Unified Dark Midnight Radial Hero */}
+      <Box
+        sx={{
+          background: 'radial-gradient(ellipse at 50% -10%, #1e3a8a 0%, #0f172a 80%, #020617 100%)',
+          color: 'white',
+          py: { xs: 8, md: 11 },
+          position: 'relative',
+          overflow: 'hidden',
+          textAlign: 'center',
+        }}
+      >
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2.5, flexWrap: 'wrap', gap: 1 }}>
+            <Chip
+              label="Comprehensive 360° Agency Solutions & AI Software"
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.1)',
+                color: 'white',
+                fontWeight: 600,
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                px: 1.8,
+                py: 2.2,
+                fontSize: '0.92rem',
+              }}
+            />
+            <Chip
+              label="🎁 20% Member Discount Unlocked on Sign Up"
+              sx={{
+                bgcolor: 'rgba(16, 185, 129, 0.15)',
+                color: '#6ee7b7',
+                fontWeight: 700,
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(52, 211, 153, 0.4)',
+                px: 1.8,
+                py: 2.2,
+                fontSize: '0.92rem',
+              }}
+            />
+          </Box>
+
+          <Typography
+            variant="h1"
+            component="h1"
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4.2rem' },
+              lineHeight: 1.15,
+              mb: 2.5,
+            }}
+          >
+            All Services & Capabilities
+          </Typography>
+
+          <Typography
+            variant="h5"
+            sx={{
+              maxWidth: 820,
+              mx: 'auto',
+              color: 'rgba(226, 232, 240, 0.9)',
+              fontSize: { xs: '1.05rem', sm: '1.25rem', md: '1.35rem' },
+              lineHeight: 1.65,
+              mb: 4.5,
+            }}
+          >
+            Discover our full catalog of cutting-edge marketing, custom software engineering, and 24/7 conversational AI assistants.
+          </Typography>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/signup')}
+              sx={{
+                bgcolor: '#10b981',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '1.05rem',
+                px: 4,
+                py: 1.6,
+                borderRadius: '50px',
+                boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4)',
+                '&:hover': {
+                  bgcolor: '#059669',
+                },
+              }}
+            >
+              Sign Up Free & Save 20% 🎁
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/bot-for-doctor')}
+              sx={{
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '1.05rem',
+                px: 3.5,
+                py: 1.6,
+                borderRadius: '50px',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Explore Bot for Doctor 🤖
+            </Button>
+          </Stack>
+        </Container>
+      </Box>
+
+      {/* Services Grid with Unified Modern Glass Cards */}
+      <Container maxWidth="lg" sx={{ mt: 8 }}>
+        <Grid container spacing={3.5}>
           {services.map((service, index) => (
             <Grid item xs={12} md={6} lg={4} key={index}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'transform 0.3s ease-in-out',
-                    '&:hover': {
-                      transform: 'translateY(-8px)',
-                      boxShadow: theme.shadows[8],
-                    },
-                  }}
-                >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      {service.icon}
-                      <Typography variant="h5" component="h2" sx={{ ml: 2 }}>
-                        {service.title}
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary" paragraph>
-                      {service.description}
-                    </Typography>
-                    <Box sx={{ mb: 2 }}>
-                      {service.features.map((feature, i) => (
-                        <Chip
-                          key={i}
-                          label={feature}
-                          size="small"
-                          sx={{ m: 0.5 }}
-                          variant="outlined"
-                        />
-                      ))}
-                    </Box>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      onClick={() =>
-                        service.isBot
-                          ? navigate('/bot-for-doctor')
-                          : handleGetStarted(service.title)
-                      }
-                      startIcon={service.isBot ? <AIIcon /> : <FacebookIcon />}
-                      endIcon={service.isBot ? undefined : undefined}
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  p: 3.5,
+                  borderRadius: 4,
+                  bgcolor: 'background.paper',
+                  border: service.isBot
+                    ? `2px solid ${alpha(theme.palette.primary.main, 0.5)}`
+                    : `1px solid ${alpha(theme.palette.divider, 0.8)}`,
+                  boxShadow: service.isBot
+                    ? '0 15px 35px rgba(37, 99, 235, 0.12)'
+                    : '0 8px 25px rgba(15, 23, 42, 0.04)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-6px)',
+                    boxShadow: '0 20px 40px rgba(37, 99, 235, 0.15)',
+                    borderColor: alpha(theme.palette.primary.main, 0.4),
+                  },
+                }}
+              >
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+                    <Box
                       sx={{
-                        borderRadius: '25px',
-                        py: 1,
-                        fontWeight: 700,
-                        textTransform: 'none',
-                        background: service.isBot
-                          ? 'linear-gradient(45deg, #2563eb 30%, #7c3aed 90%)'
-                          : 'linear-gradient(45deg, #2563eb 30%, #1d4ed8 90%)',
-                        boxShadow: service.isBot ? '0 4px 12px rgba(37, 99, 235, 0.3)' : undefined,
-                        '&:hover': {
-                          background: service.isBot
-                            ? 'linear-gradient(45deg, #1d4ed8 30%, #6d28d9 90%)'
-                            : 'linear-gradient(45deg, #1d4ed8 30%, #1e40af 90%)',
-                        },
+                        p: 1.2,
+                        borderRadius: 3,
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        display: 'inline-flex',
                       }}
                     >
-                      {service.isBot ? 'Open MarknCode Bot for Doctor' : 'Get Started'}
-                    </Button>
-                  </CardContent>
-                </Card>
+                      {service.icon}
+                    </Box>
+                    {service.isBot && (
+                      <Chip
+                        label="AI MEDICAL • 24/7"
+                        size="small"
+                        sx={{
+                          bgcolor: alpha('#10b981', 0.15),
+                          color: '#059669',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          borderRadius: '12px',
+                        }}
+                      />
+                    )}
+                  </Box>
+
+                  <Typography variant="h5" component="h2" sx={{ fontWeight: 800, mb: 1, lineHeight: 1.3 }}>
+                    {service.title}
+                  </Typography>
+
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7, mb: 3 }}>
+                    {service.description}
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8, mb: 3 }}>
+                    {service.features.map((feature, i) => (
+                      <Chip
+                        key={i}
+                        label={feature}
+                        size="small"
+                        sx={{
+                          bgcolor: alpha(theme.palette.divider, 0.4),
+                          color: 'text.primary',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          borderRadius: '8px',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+
+                <Button
+                  variant={service.isBot ? 'contained' : 'outlined'}
+                  fullWidth
+                  onClick={() =>
+                    service.isBot
+                      ? navigate('/bot-for-doctor')
+                      : handleGetStarted(service.title)
+                  }
+                  sx={{
+                    borderRadius: '50px',
+                    py: 1.3,
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    fontSize: '0.95rem',
+                    ...(service.isBot && {
+                      background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                      boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)',
+                    }),
+                  }}
+                >
+                  {service.isBot ? 'Explore Bot & Autonomous Sales 🤖' : 'Get Started with Service ↗'}
+                </Button>
+              </Card>
             </Grid>
           ))}
         </Grid>
-    </Container>
+      </Container>
+
+      {/* Member Discount CTA Banner */}
+      <Container maxWidth="md" sx={{ mt: 10 }}>
+        <Paper
+          sx={{
+            p: { xs: 4, md: 6 },
+            borderRadius: 5,
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%)',
+            color: 'white',
+            boxShadow: '0 25px 50px rgba(15, 23, 42, 0.25)',
+          }}
+        >
+          <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
+            Ready to Partner With Us?
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 4, maxWidth: 600, mx: 'auto', color: 'rgba(255,255,255,0.85)' }}>
+            Sign up today to unlock your personalized growth audit, 20% member voucher, and direct client portal access.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/signup')}
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: '50px',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                bgcolor: '#10b981',
+                color: 'white',
+                '&:hover': { bgcolor: '#059669' },
+              }}
+            >
+              Create Free Account 🎁
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/contact')}
+              sx={{
+                px: 3.5,
+                py: 1.5,
+                borderRadius: '50px',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                color: 'white',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Contact Support
+            </Button>
+          </Stack>
+        </Paper>
+      </Container>
     </Box>
   );
 };

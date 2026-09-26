@@ -8,15 +8,16 @@ import {
   Card,
   CardContent,
   Avatar,
-  useTheme,
   Button,
+  Chip,
+  Paper,
+  Stack,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
 const About: React.FC = () => {
   useCodeProtection();
-  const theme = useTheme();
   const navigate = useNavigate();
 
   const teamMembers = [
@@ -85,27 +86,114 @@ const About: React.FC = () => {
       {/* Hero Section */}
       <Box
         sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          background: 'radial-gradient(ellipse at 50% -10%, #1e3a8a 0%, #0f172a 80%, #020617 100%)',
           color: 'white',
-          py: 8,
+          py: { xs: 8, md: 11 },
           position: 'relative',
           overflow: 'hidden',
+          textAlign: 'center',
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8 }}
-        >
-          <Container maxWidth="lg">
-            <Typography variant="h2" component="h1" align="center" gutterBottom>
-              About Us
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2.5, flexWrap: 'wrap', gap: 1 }}>
+              <Chip
+                label="About MarknCode Agency"
+                sx={{
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontWeight: 600,
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  px: 1.8,
+                  py: 2.2,
+                  fontSize: '0.92rem',
+                }}
+              />
+              <Chip
+                label="🎁 Free Strategy Audit for New Members"
+                sx={{
+                  bgcolor: 'rgba(16, 185, 129, 0.15)',
+                  color: '#6ee7b7',
+                  fontWeight: 700,
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(52, 211, 153, 0.4)',
+                  px: 1.8,
+                  py: 2.2,
+                  fontSize: '0.92rem',
+                }}
+              />
+            </Box>
+
+            <Typography
+              variant="h1"
+              component="h1"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4.2rem' },
+                lineHeight: 1.15,
+                mb: 2.5,
+              }}
+            >
+              Engineering Growth. Automating Care.
             </Typography>
-            <Typography variant="h5" align="center" paragraph>
-              We're passionate about helping businesses grow and succeed
+
+            <Typography
+              variant="h5"
+              sx={{
+                maxWidth: 820,
+                mx: 'auto',
+                color: 'rgba(226, 232, 240, 0.9)',
+                fontSize: { xs: '1.05rem', sm: '1.25rem', md: '1.35rem' },
+                lineHeight: 1.65,
+                mb: 4.5,
+              }}
+            >
+              We're a team of marketing strategists, full-stack engineers, and AI pioneers passionate about transforming clinics and enterprises into high-performing digital powerhouses.
             </Typography>
-          </Container>
-        </motion.div>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/signup')}
+                sx={{
+                  bgcolor: '#10b981',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1.05rem',
+                  px: 4,
+                  py: 1.6,
+                  borderRadius: '50px',
+                  boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4)',
+                  '&:hover': { bgcolor: '#059669' },
+                }}
+              >
+                Sign Up & Join Our Community 🎁
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={() => navigate('/services')}
+                sx={{
+                  borderColor: 'rgba(255, 255, 255, 0.4)',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1.05rem',
+                  px: 3.5,
+                  py: 1.6,
+                  borderRadius: '50px',
+                  '&:hover': {
+                    borderColor: 'white',
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  },
+                }}
+              >
+                Our Services
+              </Button>
+            </Stack>
+          </motion.div>
+        </Container>
       </Box>
 
       {/* Company Story */}
@@ -277,52 +365,69 @@ const About: React.FC = () => {
         </motion.div>
       </Container>
 
-      {/* CTA Section */}
-      <Box
-        sx={{
-          background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.primary.main} 100%)`,
-          color: 'white',
-          py: 8,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <Container maxWidth="md">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+      {/* Unified CTA Section */}
+      <Container maxWidth="md" sx={{ mt: 10, mb: 12 }}>
+        <Paper
+          sx={{
+            p: { xs: 4, md: 6 },
+            borderRadius: 5,
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%)',
+            color: 'white',
+            boxShadow: '0 25px 50px rgba(15, 23, 42, 0.25)',
+          }}
+        >
+          <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
+            Join the Next Generation of High-Growth Brands
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{ mb: 4, maxWidth: 620, mx: 'auto', color: 'rgba(255,255,255,0.85)', lineHeight: 1.7 }}
           >
-            <Typography variant="h3" component="h2" align="center" gutterBottom>
-              Want to Work With Us?
-            </Typography>
-            <Typography variant="h6" align="center" paragraph>
-              Let's create something amazing together
-            </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={() => navigate('/contact')}
-                  sx={{
-                    background: 'white',
-                    color: theme.palette.primary.main,
-                    '&:hover': {
-                      background: 'rgba(255, 255, 255, 0.9)',
-                    },
-                  }}
-                >
-                  Get in Touch
-                </Button>
-              </motion.div>
-            </Box>
-          </motion.div>
-        </Container>
-      </Box>
+            Create your free account today to claim your complimentary growth audit, test MarknCode Doctor Bot for 7 days, and unlock 20% off all marketing packages.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/signup')}
+              sx={{
+                bgcolor: '#10b981',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '1.05rem',
+                px: 4,
+                py: 1.5,
+                borderRadius: '50px',
+                boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+                '&:hover': { bgcolor: '#059669' },
+              }}
+            >
+              Sign Up Free & Claim Audit 🎁
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/contact')}
+              sx={{
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: '1.05rem',
+                px: 3.5,
+                py: 1.5,
+                borderRadius: '50px',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Contact Our Founders
+            </Button>
+          </Stack>
+        </Paper>
+      </Container>
     </Box>
   );
 };

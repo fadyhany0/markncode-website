@@ -27,6 +27,8 @@ import {
   SupportAgent as SupportIcon,
   Security as SecurityIcon,
   Speed as SpeedIcon,
+  Campaign as CampaignIcon,
+  AutoAwesome as SparklesIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -237,7 +239,7 @@ const Home: React.FC = () => {
                 </Typography>
 
                 {/* CTAs */}
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4 }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
                   <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
                     <Button
                       variant="contained"
@@ -262,6 +264,31 @@ const Home: React.FC = () => {
                       }}
                     >
                       Try MarknCode Bot for Doctor
+                    </Button>
+                  </motion.div>
+
+                  <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={() => navigate('/signup')}
+                      sx={{
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        px: 3.2,
+                        py: 1.6,
+                        borderRadius: '50px',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        boxShadow: '0 10px 25px rgba(16, 185, 129, 0.35)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          boxShadow: '0 15px 35px rgba(16, 185, 129, 0.55)',
+                        },
+                      }}
+                    >
+                      Claim Free Account & Audit 🎁
                     </Button>
                   </motion.div>
 
@@ -453,7 +480,389 @@ const Home: React.FC = () => {
         </Paper>
       </Container>
 
-      {/* MarknCode Bot for Doctor Spotlight Section */}
+      {/* NEW: Exclusive Member Perks & Sign In Incentive Section */}
+      <Container maxWidth="lg" sx={{ mt: 10, mb: 4 }}>
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Chip
+            label="🎁 Exclusive Free Member Perks"
+            sx={{
+              fontWeight: 700,
+              color: '#059669',
+              bgcolor: alpha('#10b981', 0.12),
+              mb: 2,
+              px: 1.5,
+              py: 2,
+              fontSize: '0.92rem',
+            }}
+          />
+          <Typography variant="h2" component="h2" sx={{ fontWeight: 800, mb: 2 }}>
+            Why Join MarknCode? Free Tools for Every Member
+          </Typography>
+          <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 720, mx: 'auto', lineHeight: 1.6 }}>
+            Create a free account today to unlock enterprise-grade growth tools, AI audit reports, and a risk-free 7-day trial of our medical AI assistant.
+          </Typography>
+        </Box>
+
+        <Grid container spacing={3.5}>
+          {[
+            {
+              icon: '📊',
+              title: 'Free Clinic & Business Audit',
+              titleAr: 'تقييم تسويقي وتشخيصي فوري مجاناً',
+              desc: 'Get an automated diagnostic report identifying where your clinic loses patient calls and how to double conversion rates.',
+              badge: 'Worth $199 — Free',
+            },
+            {
+              icon: '🤖',
+              title: '7-Day Live Doctor Bot Trial',
+              titleAr: 'تجربة مجانية كاملة للبوت الطبي',
+              desc: 'Experience 24/7 automated WhatsApp appointment booking and payment collection risk-free for 7 full days.',
+              badge: 'No Credit Card Needed',
+            },
+            {
+              icon: '⚡',
+              title: 'Instant 20% First-Order Voucher',
+              titleAr: 'قسيمة خصم 20% فورية على أي خدمة',
+              desc: 'Exclusive discount code automatically deposited into your account upon sign-in, valid across all agency services.',
+              badge: 'Instant Savings',
+            },
+            {
+              icon: '📈',
+              title: 'Real-Time Client Portal Access',
+              titleAr: 'لوحة تحكم حصرية لمتابعة النتائج والتقارير',
+              desc: 'Track advertising campaign metrics, live bot conversation logs, and patient appointment analytics 24/7.',
+              badge: '24/7 Live Portal',
+            },
+          ].map((perk, idx) => (
+            <Grid item xs={12} sm={6} md={3} key={idx}>
+              <Paper
+                sx={{
+                  p: 3.5,
+                  height: '100%',
+                  borderRadius: 4,
+                  bgcolor: 'background.paper',
+                  border: `1px solid ${alpha(theme.palette.divider, 0.9)}`,
+                  boxShadow: '0 8px 25px rgba(15, 23, 42, 0.04)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-6px)',
+                    boxShadow: '0 18px 35px rgba(16, 185, 129, 0.12)',
+                    borderColor: alpha('#10b981', 0.4),
+                  },
+                }}
+              >
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h3" sx={{ fontSize: '2.4rem' }}>
+                      {perk.icon}
+                    </Typography>
+                    <Chip
+                      label={perk.badge}
+                      size="small"
+                      sx={{
+                        bgcolor: alpha('#10b981', 0.12),
+                        color: '#059669',
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5, lineHeight: 1.3 }}>
+                    {perk.title}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 700, display: 'block', mb: 1.5 }}>
+                    {perk.titleAr}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                    {perk.desc}
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Member Action Card */}
+        <Paper
+          sx={{
+            mt: 5,
+            p: { xs: 3, md: 4.5 },
+            borderRadius: 4,
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+            color: 'white',
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 3,
+            boxShadow: '0 20px 40px rgba(15, 23, 42, 0.2)',
+          }}
+        >
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: 'white' }}>
+              Claim Your Free Growth Account in 10 Seconds
+            </Typography>
+            <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.85)' }}>
+              Join hundreds of medical practices and high-growth brands. Sign in with Google or create an account for immediate access.
+            </Typography>
+          </Box>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ flexShrink: 0 }}>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/signup')}
+              sx={{
+                bgcolor: '#10b981',
+                color: 'white',
+                fontWeight: 700,
+                px: 3.5,
+                py: 1.4,
+                borderRadius: '50px',
+                fontSize: '0.98rem',
+                '&:hover': { bgcolor: '#059669' },
+              }}
+            >
+              Sign Up Free ⚡
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/signin')}
+              sx={{
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                color: 'white',
+                fontWeight: 700,
+                px: 3,
+                py: 1.4,
+                borderRadius: '50px',
+                fontSize: '0.98rem',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Sign In to Dashboard ↗
+            </Button>
+          </Stack>
+        </Paper>
+      </Container>
+
+      {/* AI Viral Ad Studio (اعمل إعلانك بنفسك) Showcase Section */}
+      <Box
+        id="ai-ad-studio-preview"
+        sx={{
+          py: { xs: 8, md: 11 },
+          background: 'radial-gradient(ellipse at 50% 0%, #1e3a8a 0%, #0f172a 75%, #020617 100%)',
+          color: 'white',
+          position: 'relative',
+          overflow: 'hidden',
+          my: { xs: 6, md: 8 },
+        }}
+      >
+        <Container maxWidth="lg">
+          <Paper
+            elevation={6}
+            sx={{
+              borderRadius: { xs: 4, md: 6 },
+              p: { xs: 3.5, sm: 5, md: 6.5 },
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(59, 130, 246, 0.35)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5)',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <Grid container spacing={5} alignItems="center">
+              {/* Left Details */}
+              <Grid item xs={12} md={7}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+                  <Chip
+                    icon={<CampaignIcon sx={{ color: '#f97316 !important' }} />}
+                    label="جديد | استوديو الإعلانات الفيروسية"
+                    sx={{
+                      fontWeight: 700,
+                      bgcolor: 'rgba(249, 115, 22, 0.15)',
+                      color: '#fb923c',
+                      border: '1px solid rgba(249, 115, 22, 0.3)',
+                      px: 1,
+                      py: 2,
+                    }}
+                  />
+                  <Chip
+                    icon={<SparklesIcon sx={{ color: '#38bdf8 !important', fontSize: 16 }} />}
+                    label="AI-Powered"
+                    size="small"
+                    sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700 }}
+                  />
+                  <Chip
+                    label="مجاناً 100%"
+                    size="small"
+                    sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 700 }}
+                  />
+                </Box>
+
+                <Typography
+                  variant="h2"
+                  sx={{
+                    fontFamily: '"Outfit", "Plus Jakarta Sans", sans-serif',
+                    fontWeight: 900,
+                    fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                    lineHeight: 1.2,
+                    mb: 2.5,
+                    background: 'linear-gradient(135deg, #ffffff 40%, #fdba74 80%, #f97316 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  اعمل إعلانك بنفسك واجعله ينتشر كالفيروس 🚀
+                </Typography>
+
+                <Typography variant="body1" sx={{ color: '#cbd5e1', fontSize: '1.02rem', lineHeight: 1.7, mb: 3.5 }}>
+                  لا تحتاج لدفع ميزانيات ضخمة لتبدأ. أداة الذكاء الاصطناعي الحصرية من <strong>MarkNCode</strong> تحلل منتجك أو خدمتك وتصمم لك سكريبت فيديو يوقف التمرير فوراً (Hooks)، الاستهداف التفصيلي لمدير الإعلانات، أسرار تجنب حظر الحسابات، وتوزيع الميزانية خطوة بخطوة!
+                </Typography>
+
+                {/* 4 Feature Highlights */}
+                <Grid container spacing={1.5} sx={{ mb: 4 }}>
+                  {[
+                    { title: '🎬 سكريبتات فيديو وخطافات أول 3 ثوانٍ', desc: 'نصوص مقنعة تجبر العميل على مشاهدة الفيديو كاملاً' },
+                    { title: '🎯 إعدادات الاستهداف بالمليمتر', desc: 'الاهتمامات، السلوكيات، والاستبعادات لتوفير الميزانية' },
+                    { title: '⚠️ أسرار تجنب حظر الحسابات', desc: 'كشف الكلمات الممنوعة وسياسات ميتا وتيك توك الصارمة' },
+                    { title: '💰 خطة توزيع الميزانية لـ 7 أيام', desc: 'مراحل الاختبار والتكبير ومؤشرات الـ ROAS المستهدفة' },
+                  ].map((f, i) => (
+                    <Grid item xs={12} sm={6} key={i}>
+                      <Box sx={{ p: 1.8, borderRadius: '12px', bgcolor: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#f8fafc', mb: 0.5 }}>
+                          {f.title}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', lineHeight: 1.4 }}>
+                          {f.desc}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {/* Actions */}
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    onClick={() => navigate('/create-your-ad')}
+                    startIcon={<CampaignIcon />}
+                    endIcon={<LaunchIcon sx={{ fontSize: 16 }} />}
+                    sx={{
+                      py: 1.5,
+                      px: 3.5,
+                      borderRadius: '50px',
+                      fontWeight: 800,
+                      fontSize: '1rem',
+                      textTransform: 'none',
+                      background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                      boxShadow: '0 8px 25px rgba(249, 115, 22, 0.45)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
+                        boxShadow: '0 12px 35px rgba(249, 115, 22, 0.6)',
+                        transform: 'translateY(-2px)',
+                      },
+                    }}
+                  >
+                    أطلق إعلانك الآن مجاناً 🚀
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={() => navigate('/signup')}
+                    sx={{
+                      py: 1.5,
+                      px: 3,
+                      borderRadius: '50px',
+                      fontWeight: 700,
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                      color: 'white',
+                      textTransform: 'none',
+                      '&:hover': {
+                        borderColor: '#f97316',
+                        bgcolor: 'rgba(249, 115, 22, 0.08)',
+                      },
+                    }}
+                  >
+                    سجّل لحفظ الخطط الإعلانية 🎁
+                  </Button>
+                </Stack>
+              </Grid>
+
+              {/* Right Visual Interactive Card */}
+              <Grid item xs={12} md={5}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(2, 6, 23, 0.8) 100%)',
+                    border: '1px solid rgba(59, 130, 246, 0.35)',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#f8fafc' }}>
+                      ⚡ نموذج استوديو الإعلانات
+                    </Typography>
+                    <Chip label="Live Generator" size="small" sx={{ bgcolor: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', fontWeight: 700 }} />
+                  </Box>
+
+                  <Box sx={{ p: 1.8, borderRadius: '12px', bgcolor: 'rgba(2, 6, 23, 0.7)', mb: 1.8, border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.3 }}>
+                      المنتج المستهدف:
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
+                      عرض تجميل الأسنان وهوليوود سمايل 🏥
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ p: 1.8, borderRadius: '12px', bgcolor: 'rgba(249, 115, 22, 0.08)', mb: 1.8, border: '1px solid rgba(249, 115, 22, 0.3)' }}>
+                    <Typography variant="caption" sx={{ color: '#fb923c', fontWeight: 700, display: 'block', mb: 0.3 }}>
+                      🔥 خطاف الفيديو (The 3-Second Viral Hook):
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#ffedd5', fontStyle: 'italic', fontSize: '0.88rem' }}>
+                      "لو بتفكر تبيض أسنانك قريب.. وقف الفيديو 5 ثواني عشان تتجنب أكبر مقلب بيقع فيه 90% من الناس!"
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ p: 1.8, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.08)', mb: 2.5, border: '1px solid rgba(37, 99, 235, 0.3)' }}>
+                    <Typography variant="caption" sx={{ color: '#60a5fa', fontWeight: 700, display: 'block', mb: 0.3 }}>
+                      🎯 الاستهداف الموصى به:
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#bfdbfe', display: 'block' }}>
+                      العمر: 22 - 48 سنة • الاهتمامات: Cosmetic dentistry, Self-care • السلوك: Engaged Shoppers
+                    </Typography>
+                  </Box>
+
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => navigate('/create-your-ad')}
+                    sx={{
+                      borderRadius: '12px',
+                      py: 1.3,
+                      background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                      fontWeight: 800,
+                      fontSize: '0.95rem',
+                    }}
+                  >
+                    جرب بنفسك الآن لمنتجك ⚡
+                  </Button>
+                </Paper>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Container>
+      </Box>
+
       <Box
         id="markncode-bot-for-doctor"
         sx={{
@@ -932,13 +1341,33 @@ const Home: React.FC = () => {
               <Button
                 variant="contained"
                 size="large"
+                onClick={() => navigate('/signup')}
+                sx={{
+                  bgcolor: '#10b981',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '1.05rem',
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: '50px',
+                  boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+                  '&:hover': {
+                    bgcolor: '#059669',
+                  },
+                }}
+              >
+                Sign Up Free & Claim Audit 🎁
+              </Button>
+              <Button
+                variant="contained"
+                size="large"
                 onClick={() => navigate('/contact')}
                 sx={{
                   bgcolor: 'white',
                   color: '#1e3a8a',
                   fontWeight: 700,
                   fontSize: '1.05rem',
-                  px: 4,
+                  px: 3.5,
                   py: 1.5,
                   borderRadius: '50px',
                   '&:hover': {

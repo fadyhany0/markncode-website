@@ -17,6 +17,44 @@
       href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Enterprise Security Headers & Policies -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
+
+    <!-- Early Anti-Inspect & Framebusting Script -->
+    <script>
+      (function() {
+        // Framebusting (Anti-Clickjacking)
+        if (window.top !== window.self) {
+          try {
+            window.top.location = window.self.location;
+          } catch(e) {
+            document.documentElement.style.display = 'none';
+          }
+        }
+        // Early Right-click Block
+        document.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          return false;
+        }, true);
+        // Early Keydown Block (F12, Ctrl+Shift+I/J/C, Ctrl+U)
+        document.addEventListener('keydown', function(e) {
+          var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+          var ctrl = isMac ? e.metaKey : e.ctrlKey;
+          var k = e.key ? e.key.toUpperCase() : '';
+          var code = e.keyCode || e.which;
+          if (k === 'F12' || code === 123 ||
+             (ctrl && e.shiftKey && (k === 'I' || k === 'J' || k === 'C' || code === 73 || code === 74 || code === 67)) ||
+             (ctrl && (k === 'U' || k === 'S' || code === 85 || code === 83))) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, true);
+      })();
+    </script>
     <title>MarknCode Agency | Premium Digital Marketing & AI Solutions</title>
   </head>
   <body>

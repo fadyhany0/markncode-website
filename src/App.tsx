@@ -1,7 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box, CircularProgress, Typography, Button } from '@mui/material';
+import { getSiteSettings } from './services/adminSettingsService';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Services from './pages/Services';
@@ -15,6 +17,11 @@ import SignUp from './components/SignUp';
 import OurServices from './components/OurServices';
 import NotFound from './pages/NotFound';
 import BotForDoctor from './pages/BotForDoctor';
+import CreateYourAd from './pages/CreateYourAd';
+import AdminPayments from './pages/AdminPayments';
+import ScrollToTop from './components/ScrollToTop';
+import BackToTopFab from './components/BackToTopFab';
+import SecurityGuard from './components/SecurityGuard';
 
 const theme = createTheme({
   palette: {
@@ -154,8 +161,208 @@ const theme = createTheme({
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
   return user ? <>{children}</> : <Navigate to="/signin" />;
+};
+
+const MaintenanceScreen: React.FC<{ message: string; phone: string; email: string }> = ({
+  message,
+  phone,
+  email,
+}) => {
+  return (
+    <Box
+      sx={{
+        minHeight: '85vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #090d16 0%, #0f172a 100%)',
+        px: 3,
+        py: 8,
+      }}
+    >
+      <Box
+        sx={{
+          maxWidth: 600,
+          width: '100%',
+          textAlign: 'center',
+          p: { xs: 4, sm: 6 },
+          borderRadius: 4,
+          background: 'rgba(30, 41, 59, 0.75)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(148, 163, 184, 0.15)',
+          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5)',
+          color: '#ffffff',
+        }}
+      >
+        <Box
+          sx={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            bgcolor: 'rgba(234, 179, 8, 0.15)',
+            border: '2px solid rgba(234, 179, 8, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mx: 'auto',
+            mb: 3,
+            fontSize: '2.5rem',
+          }}
+        >
+          ⚙️
+        </Box>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 800,
+            mb: 1.5,
+            color: '#f8fafc',
+            fontSize: { xs: '1.5rem', sm: '1.9rem' },
+          }}
+        >
+          الموقع تحت الصيانة المؤقتة
+        </Typography>
+        <Typography
+          variant="body1"
+          sx={{ color: '#94a3b8', mb: 3, lineHeight: 1.8, fontSize: '1.02rem' }}
+        >
+          {message ||
+            'نقوم حالياً بإجراء بعض التحديثات والتحسينات الدورية لنمنحكم أفضل تجربة. سنعود للعمل بكامل طاقتنا في أقرب وقت!'}
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', mb: 4 }}>
+          {phone && (
+            <Button
+              component="a"
+              href={`https://wa.me/2${phone.replace(/[^0-9]/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="contained"
+              sx={{
+                bgcolor: '#10b981',
+                '&:hover': { bgcolor: '#059669' },
+                px: 3,
+                fontWeight: 700,
+              }}
+            >
+              تواصل عبر واتساب 💬
+            </Button>
+          )}
+          {email && (
+            <Button
+              component="a"
+              href={`mailto:${email}`}
+              variant="outlined"
+              sx={{
+                borderColor: 'rgba(148, 163, 184, 0.3)',
+                color: '#cbd5e1',
+                '&:hover': { borderColor: '#ffffff', color: '#ffffff' },
+                px: 3,
+                fontWeight: 600,
+              }}
+            >
+              مراسلة الإدارة ✉️
+            </Button>
+          )}
+        </Box>
+        <Box sx={{ borderTop: '1px solid rgba(148, 163, 184, 0.1)', pt: 3 }}>
+          <Button
+            component={RouterLink}
+            to="/admin"
+            size="small"
+            sx={{ color: '#64748b', fontSize: '0.8rem', '&:hover': { color: '#94a3b8' } }}
+          >
+            دخول إدارة الموقع (Admin Area) 🔒
+          </Button>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const [siteSettings, setSiteSettings] = React.useState(() => getSiteSettings());
+
+  React.useEffect(() => {
+    const handleSync = () => setSiteSettings(getSiteSettings());
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('mnc_admin_settings_sync');
+      bc.onmessage = handleSync;
+    } catch (e) {}
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      if (bc) bc.close();
+    };
+  }, []);
+
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  if (siteSettings.maintenanceMode && !isAdminRoute) {
+    return (
+      <>
+        <MaintenanceScreen
+          message={siteSettings.maintenanceMessage}
+          phone={siteSettings.adminPhone}
+          email={siteSettings.adminEmail}
+        />
+        <Footer />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Navbar />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/home" element={<Home />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/bot-for-doctor" element={<BotForDoctor />} />
+        <Route path="/markncode-bot-for-doctor" element={<BotForDoctor />} />
+        <Route path="/create-your-ad" element={<CreateYourAd />} />
+        <Route path="/ai-ad-studio" element={<CreateYourAd />} />
+
+        <Route path="/our-services" element={<OurServices />} />
+
+        {/* Auth Routes */}
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+
+        {/* Protected Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminPayments />} />
+        <Route path="/admin/payments" element={<AdminPayments />} />
+
+        {/* Redirects */}
+        <Route path="/" element={<Home />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Footer />
+      <BackToTopFab />
+    </>
+  );
 };
 
 const App: React.FC = () => {
@@ -163,38 +370,10 @@ const App: React.FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
+        <ScrollToTop />
+        <SecurityGuard />
         <AuthProvider>
-          <Navbar />
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/home" element={<Home />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/bot-for-doctor" element={<BotForDoctor />} />
-            <Route path="/markncode-bot-for-doctor" element={<BotForDoctor />} />
-            
-            <Route path="/our-services" element={<OurServices />} />
-            
-            {/* Auth Routes */}
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-            
-            {/* Protected Routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Redirects */}
-            <Route path="/" element={<Home />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Footer />
+          <AppContent />
         </AuthProvider>
       </Router>
     </ThemeProvider>

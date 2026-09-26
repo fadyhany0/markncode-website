@@ -15,6 +15,7 @@ import {
   Paper,
   Tabs,
   Tab,
+  Stack,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -332,6 +333,102 @@ const Services: React.FC = () => {
             ))}
           </AnimatePresence>
         </Grid>
+      </Container>
+
+      {/* Member Incentive CTA Banner */}
+      <Container maxWidth="md" sx={{ mt: 10 }}>
+        <Paper
+          sx={{
+            p: { xs: 4, md: 6 },
+            borderRadius: 5,
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%)',
+            color: 'white',
+            boxShadow: '0 25px 50px rgba(15, 23, 42, 0.2)',
+          }}
+        >
+          <Chip
+            label="🎁 Exclusive Member Discount"
+            sx={{
+              bgcolor: 'rgba(52, 211, 153, 0.2)',
+              color: '#34d399',
+              fontWeight: 700,
+              mb: 2.5,
+              fontSize: '0.85rem',
+            }}
+          />
+          <Typography variant="h3" sx={{ fontWeight: 800, mb: 2 }}>
+            Unlock 20% Off Any Service + Free Growth Audit
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{ mb: 4, maxWidth: 620, mx: 'auto', color: 'rgba(255,255,255,0.85)', lineHeight: 1.7 }}
+          >
+            Create your free MarknCode account today to access your member dashboard, download a custom strategy blueprint, and start your 7-day doctor bot trial.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center">
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/signup')}
+              sx={{
+                px: 4,
+                py: 1.6,
+                borderRadius: '50px',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                bgcolor: '#10b981',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: '#059669',
+                },
+              }}
+            >
+              Sign Up Free & Claim Perks ⚡
+            </Button>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/create-your-ad')}
+              sx={{
+                px: 3.5,
+                py: 1.6,
+                borderRadius: '50px',
+                fontSize: '1.02rem',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                color: 'white',
+                boxShadow: '0 6px 20px rgba(249, 115, 22, 0.4)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
+                },
+              }}
+            >
+              اعمل إعلانك بنفسك 🚀
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/our-services')}
+              endIcon={<ArrowIcon />}
+              sx={{
+                px: 3.5,
+                py: 1.6,
+                borderRadius: '50px',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                borderColor: 'rgba(255, 255, 255, 0.4)',
+                color: 'white',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              Browse All Services Catalog
+            </Button>
+          </Stack>
+        </Paper>
       </Container>
     </Box>
   );

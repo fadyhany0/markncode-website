@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -38,10 +39,18 @@ const Footer: React.FC = () => {
           <Grid item xs={12} sm={6} md={4}>
             <Typography
               variant="h5"
+              component={RouterLink}
+              to="/home"
+              onClick={() => {
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              }}
               sx={{
                 fontFamily: '"Outfit", sans-serif',
                 fontWeight: 800,
                 letterSpacing: '-0.02em',
+                textDecoration: 'none',
+                display: 'inline-block',
+                cursor: 'pointer',
                 background: 'linear-gradient(135deg, #60a5fa 0%, #c084fc 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -109,22 +118,26 @@ const Footer: React.FC = () => {
             <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
               {[
                 { text: 'Home', href: '/' },
-                { text: 'Services', href: '/services' },
+                { text: 'اعمل إعلانك بنفسك 🚀', href: '/create-your-ad', isHighlight: true },
                 { text: 'Bot for Doctor 🤖', href: '/bot-for-doctor', isHighlight: true },
+                { text: 'Services', href: '/services' },
                 { text: 'About Agency', href: '/about' },
                 { text: 'Contact Us', href: '/contact' },
               ].map((link: { text: string; href: string; isHighlight?: boolean; target?: string }) => (
                 <Box component="li" key={link.text} sx={{ mb: 1.5 }}>
                   <Link
-                    href={link.href}
-                    target={link.target || undefined}
-                    rel={link.target ? 'noopener noreferrer' : undefined}
+                    component={RouterLink}
+                    to={link.href}
+                    onClick={() => {
+                      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                    }}
                     sx={{
                       color: link.isHighlight ? '#60a5fa' : '#94a3b8',
                       textDecoration: 'none',
                       fontSize: '0.92rem',
                       fontWeight: link.isHighlight ? 700 : 500,
                       transition: 'color 0.2s ease',
+                      cursor: 'pointer',
                       '&:hover': {
                         color: '#ffffff',
                         textDecoration: 'none',

@@ -13,9 +13,10 @@ import {
 } from '@firebase/auth';
 import { auth, googleProvider } from '../firebase';
 
-interface User {
+export interface User {
   email: string;
   name: string;
+  isGoogleAuth?: boolean;
 }
 
 interface AuthContextType {
@@ -47,9 +48,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
+        const isGoogle = firebaseUser.providerData.some(
+          (p) => p.providerId === 'google.com'
+        );
         setUser({
           email: firebaseUser.email || '',
-          name: firebaseUser.displayName || 'User'
+          name: firebaseUser.displayName || 'User',
+          isGoogleAuth: isGoogle,
         });
       } else {
         setUser(null);
@@ -60,6 +65,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
+  const getPostAuthRedirect = () => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam = searchParams.get('redirect');
+      if (redirectParam && redirectParam.startsWith('/')) return redirectParam;
+      const stored = sessionStorage.getItem('post_auth_redirect');
+      if (stored && stored.startsWith('/')) {
+        sessionStorage.removeItem('post_auth_redirect');
+        return stored;
+      }
+    } catch (e) {
+      // fallback
+    }
+    return '/dashboard';
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
@@ -68,9 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userCredential.user) {
         setUser({
           email: userCredential.user.email || '',
-          name: userCredential.user.displayName || 'User'
+          name: userCredential.user.displayName || 'User',
+          isGoogleAuth: false,
         });
-        navigate('/dashboard');
+        navigate(getPostAuthRedirect());
       }
     } catch (err) {
       const error = err as AuthError;
@@ -105,9 +127,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setUser({
           email: userCredential.user.email || '',
-          name: name
+          name: name,
+          isGoogleAuth: false,
         });
-        navigate('/dashboard');
+        navigate(getPostAuthRedirect());
       }
     } catch (err) {
       const error = err as AuthError;
@@ -140,9 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (result.user) {
           setUser({
             email: result.user.email || '',
-            name: result.user.displayName || 'User'
+            name: result.user.displayName || 'User',
+            isGoogleAuth: true,
           });
-          navigate('/dashboard');
+          navigate(getPostAuthRedirect());
         }
       } catch (popupError: any) {
         if (popupError.code === 'auth/popup-closed-by-user') {

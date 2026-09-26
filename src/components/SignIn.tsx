@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCodeProtection } from '../hooks/useCodeProtection';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -125,6 +125,10 @@ const SignIn: React.FC = () => {
     }
   };
 
+  const location = useLocation();
+  const redirectParam = new URLSearchParams(location.search).get('redirect');
+  const signUpPath = redirectParam ? `/signup?redirect=${encodeURIComponent(redirectParam)}` : '/signup';
+
   return (
     <Box
       sx={{
@@ -220,8 +224,35 @@ const SignIn: React.FC = () => {
                 Welcome Back
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.95rem' }}>
-                Sign in to manage your services and access your dashboard
+                Sign in to manage your services, access your AI dashboard, and claim your free trial.
               </Typography>
+            </Box>
+
+            {/* Member Perks Box */}
+            <Box
+              sx={{
+                mb: 3,
+                p: 2,
+                borderRadius: '16px',
+                bgcolor: 'rgba(16, 185, 129, 0.08)',
+                border: '1px dashed rgba(16, 185, 129, 0.4)',
+                textAlign: 'left',
+              }}
+            >
+              <Typography variant="caption" sx={{ color: '#059669', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 0.8 }}>
+                🎁 Free Member Perks Unlocked:
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
+                <Typography variant="body2" sx={{ fontSize: '0.84rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <span>✅</span> <strong>Free Clinic Growth Audit</strong> (Instant diagnostic report)
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.84rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <span>✅</span> <strong>7-Day Doctor Bot Trial</strong> (WhatsApp automation)
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.84rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <span>✅</span> <strong>20% Member Discount</strong> automatically applied
+                </Typography>
+              </Box>
             </Box>
 
             {/* Error Message */}
@@ -427,7 +458,7 @@ const SignIn: React.FC = () => {
               </Typography>
               <Typography
                 component={RouterLink}
-                to="/signup"
+                to={signUpPath}
                 variant="body2"
                 sx={{
                   color: '#2563eb',

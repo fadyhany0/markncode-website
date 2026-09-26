@@ -6,11 +6,13 @@ import {
   Grid,
   TextField,
   Button,
-  useTheme,
   IconButton,
   Paper,
   Alert,
+  Chip,
+  Stack,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import {
   LocationOn,
   Phone,
@@ -27,7 +29,7 @@ import emailjs from '@emailjs/browser';
 
 const Contact: React.FC = () => {
   useCodeProtection();
-  const theme = useTheme();
+  const navigate = useNavigate();
   const form = useRef<HTMLFormElement>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -86,31 +88,92 @@ const Contact: React.FC = () => {
   };
 
   return (
-    <Box>
-      {/* Hero Section */}
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 10 }}>
+      {/* Unified Dark Midnight Radial Hero */}
       <Box
         sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          background: 'radial-gradient(ellipse at 50% -10%, #1e3a8a 0%, #0f172a 80%, #020617 100%)',
           color: 'white',
-          py: 8,
+          py: { xs: 8, md: 10 },
           position: 'relative',
           overflow: 'hidden',
+          textAlign: 'center',
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8 }}
-        >
-          <Container maxWidth="lg">
-            <Typography variant="h2" component="h1" align="center" gutterBottom>
-              Contact Us
+        <Container maxWidth="md">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+              <Chip
+                label="Direct Support & Consulting"
+                sx={{
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'white',
+                  fontWeight: 600,
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  px: 1.5,
+                  py: 2,
+                }}
+              />
+              <Chip
+                label="🎁 Sign in to Unlock Free Growth Audit"
+                onClick={() => navigate('/signup')}
+                sx={{
+                  bgcolor: 'rgba(16, 185, 129, 0.18)',
+                  color: '#6ee7b7',
+                  fontWeight: 700,
+                  border: '1px solid rgba(52, 211, 153, 0.45)',
+                  cursor: 'pointer',
+                  px: 1.5,
+                  py: 2,
+                  '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.28)' },
+                }}
+              />
+            </Box>
+            <Typography
+              variant="h1"
+              component="h1"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '2.5rem', sm: '3.4rem', md: '4rem' },
+                lineHeight: 1.15,
+                mb: 2,
+              }}
+            >
+              Get in Touch with Our Experts
             </Typography>
-            <Typography variant="h5" align="center" paragraph>
-              We'd love to hear from you
+            <Typography
+              variant="h5"
+              sx={{
+                color: 'rgba(226, 232, 240, 0.88)',
+                fontSize: { xs: '1.05rem', sm: '1.2rem' },
+                lineHeight: 1.6,
+                maxWidth: 620,
+                mx: 'auto',
+                mb: 3,
+              }}
+            >
+              Have a question about MarknCode Bot for Doctor or ready to launch a marketing campaign? We respond in under 2 hours.
             </Typography>
-          </Container>
-        </motion.div>
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button
+                variant="contained"
+                onClick={() => navigate('/signup')}
+                sx={{
+                  bgcolor: '#10b981',
+                  color: 'white',
+                  fontWeight: 700,
+                  borderRadius: '50px',
+                  px: 3.5,
+                  py: 1.3,
+                  '&:hover': { bgcolor: '#059669' },
+                }}
+              >
+                Sign Up for Free Account 🎁
+              </Button>
+            </Stack>
+          </motion.div>
+        </Container>
       </Box>
 
       {/* Contact Form and Info */}
