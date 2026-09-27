@@ -40,8 +40,6 @@ import {
   AccessTime as TimeIcon,
   WhatsApp as WhatsAppIcon,
   Calculate as CalculateIcon,
-  CompareArrows as CompareIcon,
-  MedicalServices as DoctorIcon,
   SupportAgent as SupportIcon,
   MenuBook as GuideIcon,
   Launch as LaunchIcon,
@@ -617,6 +615,7 @@ const CreateYourAd: React.FC = () => {
   const [auditResult, setAuditResult] = useState<GeneratedGeminiCampaign | null>(null);
   const [activeResultTab, setActiveResultTab] = useState(0);
   const [targetingSubTab, setTargetingSubTab] = useState(0);
+  const [isEditingForm, setIsEditingForm] = useState<boolean>(false);
   const [copiedSnackbar, setCopiedSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -725,6 +724,7 @@ const CreateYourAd: React.FC = () => {
         setCustomCpa(result.roiCalculations.estimatedCPA);
       }
       setIsAnalyzing(false);
+      setIsEditingForm(false);
       setActiveResultTab(0);
 
       // Save generated plan locally so customer never loses access to it
@@ -760,6 +760,7 @@ const CreateYourAd: React.FC = () => {
         consumeSingleUseCredit(activePaymentOrder?.cloudId || '', user.email);
       }
       setAuditResult(null);
+      setIsEditingForm(false);
       setPaymentStatus('used');
       setProductName('');
       setBusinessField('');
@@ -2469,7 +2470,7 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
       </Box>
 
       {/* Main Diagnostic Workspace */}
-      <Container maxWidth="lg" sx={{ mt: 6 }}>
+      <Container maxWidth={auditResult && !isEditingForm ? 'xl' : 'md'} sx={{ mt: { xs: 4, md: 6 } }}>
         {/* Auth Loading Spinner */}
         {authLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -3336,27 +3337,94 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
           </Box>
         </Card>
 
-        <Grid container spacing={{ xs: 2.5, md: 4 }}>
-          {/* Left: Consultation Interview Form */}
-          <Grid item xs={12} lg={5}>
+        {/* STATE 1: Analyzing in Progress */}
+        {isAnalyzing && (
+          <Box sx={{ maxWidth: 680, mx: 'auto', py: { xs: 4, md: 8 } }}>
             <Card
               sx={{
-                bgcolor: 'rgba(15, 23, 42, 0.85)',
+                bgcolor: 'rgba(15, 23, 42, 0.95)',
                 backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(59, 130, 246, 0.35)',
-                borderRadius: { xs: '20px', md: '24px' },
-                p: { xs: 2, sm: 3, md: 4 },
-                boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                position: { xs: 'static', lg: 'sticky' },
-                top: { lg: 90 },
+                border: '1.5px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '28px',
+                p: { xs: 4, md: 6 },
+                textAlign: 'center',
+                boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 35px rgba(56, 189, 248, 0.15)',
+              }}
+            >
+              <CircularProgress size={64} sx={{ color: '#38bdf8', mb: 3 }} />
+              <Typography variant="h5" sx={{ fontWeight: 900, color: '#f8fafc', mb: 1.5 }}>
+                جاري هندسة خطة إعلانك بالذكاء الاصطناعي... ⚡
+              </Typography>
+              <Typography variant="body1" sx={{ color: '#38bdf8', fontWeight: 700, mb: 3 }}>
+                {ANALYSIS_STEPS[analysisStatusIndex]}
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={((analysisStatusIndex + 1) / ANALYSIS_STEPS.length) * 100}
+                sx={{
+                  height: 10,
+                  borderRadius: 5,
+                  maxWidth: 440,
+                  mx: 'auto',
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                  '& .MuiLinearProgress-bar': {
+                    background: 'linear-gradient(90deg, #38bdf8 0%, #10b981 100%)',
+                  },
+                }}
+              />
+            </Card>
+          </Box>
+        )}
+
+        {/* STATE 2: Consultation Setup Form (Initial or Editing) */}
+        {!isAnalyzing && (!auditResult || isEditingForm) && (
+          <Box sx={{ maxWidth: 880, mx: 'auto' }}>
+            {isEditingForm && auditResult && (
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  px: 3,
+                  borderRadius: '16px',
+                  bgcolor: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 1.5,
+                }}
+              >
+                <Typography variant="body2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
+                  ✏️ أنت في وضع تعديل بيانات البيزنس. عدّل ما تريد ثم اضغط "تحديث خطة الإعلان 🚀" بالأسفل.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setIsEditingForm(false)}
+                  sx={{ color: '#ffffff', borderColor: 'rgba(255,255,255,0.3)', borderRadius: '10px', fontWeight: 700 }}
+                >
+                  رجوع لعرض الخطة الحالية 📊
+                </Button>
+              </Box>
+            )}
+
+            <Card
+              sx={{
+                bgcolor: 'rgba(15, 23, 42, 0.9)',
+                backdropFilter: 'blur(20px)',
+                border: '1.5px solid rgba(59, 130, 246, 0.35)',
+                borderRadius: { xs: '20px', md: '28px' },
+                p: { xs: 2.5, sm: 3.5, md: 4.5 },
+                boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Box
                     sx={{
-                      width: 44,
-                      height: 44,
+                      width: 46,
+                      height: 46,
                       borderRadius: '14px',
                       background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
                       display: 'flex',
@@ -3366,14 +3434,14 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                       flexShrink: 0,
                     }}
                   >
-                    <AuditIcon sx={{ color: 'white', fontSize: 24 }} />
+                    <AuditIcon sx={{ color: 'white', fontSize: 26 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#f8fafc', lineHeight: 1.2, fontSize: { xs: '1rem', sm: '1.15rem' } }}>
-                      {productName.trim() || businessField.trim() ? `استجواب إعلاني: ${productName || businessField}` : 'استجواب إعلاني ذكي'}
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#f8fafc', lineHeight: 1.2, fontSize: { xs: '1.05rem', sm: '1.25rem' } }}>
+                      {productName.trim() || businessField.trim() ? `إعداد خطة إعلان: ${productName || businessField}` : 'إعداد خطة إعلانك الذكية 🎯'}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.82rem' }}>
-                      الخطوة {activeStep + 1} من 3
+                    <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.85rem' }}>
+                      الخطوة {activeStep + 1} من 3: {activeStep === 0 ? 'بيانات المنتج والنشاط' : activeStep === 1 ? 'الميزانية والتسعير' : 'الجمهور المستهدف والهدف'}
                     </Typography>
                   </Box>
                 </Box>
@@ -4654,355 +4722,551 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                 )}
               </AnimatePresence>
             </Card>
-          </Grid>
+          </Box>
+        )}
 
-          {/* Right: Real-time MarkNCode AI Diagnostic & Strategy Output */}
-          <Grid item xs={12} lg={7}>
-            {isAnalyzing && (
-              <Card
-                sx={{
-                  bgcolor: 'rgba(15, 23, 42, 0.9)',
-                  border: '1px solid rgba(59, 130, 246, 0.4)',
-                  borderRadius: '24px',
-                  p: { xs: 4, md: 6 },
-                  textAlign: 'center',
-                }}
-              >
-                <CircularProgress size={60} sx={{ color: '#38bdf8', mb: 3 }} />
-                <Typography variant="h5" sx={{ fontWeight: 800, color: '#f8fafc', mb: 1 }}>
-                  جاري التواصل مع MarkNCode وتحليل بيزنسك الآن...
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#38bdf8', fontWeight: 600, mb: 3 }}>
-                  {ANALYSIS_STEPS[analysisStatusIndex]}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={((analysisStatusIndex + 1) / ANALYSIS_STEPS.length) * 100}
-                  sx={{
-                    height: 8,
-                    borderRadius: 4,
-                    maxWidth: 400,
-                    mx: 'auto',
-                    bgcolor: 'rgba(255,255,255,0.08)',
-                    '& .MuiLinearProgress-bar': {
-                      background: 'linear-gradient(90deg, #38bdf8 0%, #10b981 100%)',
-                    },
-                  }}
-                />
-              </Card>
-            )}
-
-            {!isAnalyzing && !auditResult && (
-              <Card
-                sx={{
-                  bgcolor: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px dashed rgba(255, 255, 255, 0.15)',
-                  borderRadius: '24px',
-                  p: { xs: 4, md: 8 },
-                  textAlign: 'center',
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: '20px',
-                    bgcolor: 'rgba(56, 189, 248, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2,
-                  }}
-                >
-                  <SparkleIcon sx={{ color: '#38bdf8', fontSize: 36 }} />
-                </Box>
-                <Typography variant="h6" sx={{ fontWeight: 800, color: '#f8fafc', mb: 1 }}>
-                  أجب على تفاصيل الاستهداف واضغط "توليد خطة الإعلان الذكية"
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#cbd5e1', maxWidth: 480, mx: 'auto', mb: 3, lineHeight: 1.7 }}>
-                  ستحصل على استهداف دقيق متقاطع، مولد توزيع الميزانية، اختبار أ/ب التلقائي، سكريبتات ريلز بالثواني، وحاسبة الأرباح والعائد!
-                </Typography>
-              </Card>
-            )}
-
-            {!isAnalyzing && auditResult && (
-              <Box>
-                {/* Result Top Summary Card */}
-                <Card
-                  sx={{
-                    background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.9) 100%)',
-                    border: '1px solid rgba(59, 130, 246, 0.4)',
-                    borderRadius: '24px',
-                    p: { xs: 2.5, sm: 3, md: 4 },
-                    mb: 3,
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  <Grid container spacing={3} alignItems="center">
-                    <Grid item xs={12} sm={4} sx={{ textAlign: 'center' }}>
-                      <Box
-                        sx={{
-                          position: 'relative',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 110,
-                          height: 110,
-                          borderRadius: '50%',
-                          background:
-                            auditResult.score >= 80
-                              ? 'conic-gradient(#10b981 0% 85%, rgba(255,255,255,0.1) 85% 100%)'
-                              : 'conic-gradient(#f59e0b 0% 65%, rgba(255,255,255,0.1) 65% 100%)',
-                          p: 1.2,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: '100%',
-                            borderRadius: '50%',
-                            bgcolor: '#0f172a',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Typography variant="h4" sx={{ fontWeight: 900, color: auditResult.score >= 80 ? '#10b981' : '#f59e0b' }}>
-                            {auditResult.score}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#cbd5e1', fontSize: '0.72rem', fontWeight: 800 }}>
-                            من 100
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 1, color: '#f8fafc' }}>
-                        {auditResult.score >= 80 ? 'جاهزية إعلانية ممتازة 🚀' : 'تحذير: أخطاء بحاجة لتصحيح ⚠️'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12} sm={8}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                          <Chip
-                            size="small"
-                            label={auditResult.isLiveGemini ? 'MarkNCode AI Pro ⚡ (Gemini AI Live)' : 'MarkNCode AI Engine 🤖'}
-                            sx={{
-                              bgcolor: auditResult.isLiveGemini ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)',
-                              color: auditResult.isLiveGemini ? '#34d399' : '#38bdf8',
-                              fontWeight: 800,
-                              border: auditResult.isLiveGemini ? '1px solid rgba(52, 211, 153, 0.4)' : 'none',
-                            }}
-                          />
-                          <Chip
-                            size="small"
-                            label={`${totalBudget} ج.م / ${campaignDays} أيام`}
-                            sx={{ bgcolor: 'rgba(37, 99, 235, 0.25)', color: '#93c5fd', fontWeight: 800 }}
-                          />
-                          <Chip
-                            size="small"
-                            label={pricePoint === 'luxury' ? 'فاخر 💎' : pricePoint === 'mid' ? 'متوسط 🌟' : 'اقتصادي 🏷️'}
-                            sx={{ bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#ffffff', fontWeight: 700 }}
-                          />
-                        </Box>
-
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={handleExportFullCampaignPlan}
-                            startIcon={<ExportIcon sx={{ fontSize: 16 }} />}
-                            sx={{
-                              color: '#38bdf8',
-                              borderColor: 'rgba(56, 189, 248, 0.4)',
-                              borderRadius: '10px',
-                              fontWeight: 800,
-                              fontSize: '0.78rem',
-                              bgcolor: 'rgba(56, 189, 248, 0.08)',
-                              '&:hover': {
-                                borderColor: '#38bdf8',
-                                bgcolor: 'rgba(56, 189, 248, 0.18)',
-                              },
-                            }}
-                          >
-                            📥 نسخ الخطة بالكامل
-                          </Button>
-
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={handleStartNewCampaignPlan}
-                            startIcon={<ResetIcon sx={{ fontSize: 16 }} />}
-                            sx={{
-                              color: '#fbbf24',
-                              borderColor: 'rgba(251, 191, 36, 0.4)',
-                              borderRadius: '10px',
-                              fontWeight: 800,
-                              fontSize: '0.78rem',
-                              bgcolor: 'rgba(251, 191, 36, 0.08)',
-                              '&:hover': {
-                                borderColor: '#fbbf24',
-                                bgcolor: 'rgba(251, 191, 36, 0.18)',
-                              },
-                            }}
-                          >
-                            🔄 خطة لمنتج جديد (200 ج.م)
-                          </Button>
-                        </Stack>
-                      </Box>
-                      <Typography variant="body1" sx={{ color: '#e2e8f0', fontWeight: 700, mb: 1, lineHeight: 1.6 }}>
-                        {auditResult.feasibilityVerdict}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                        📈 {auditResult.estimatedResults}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Card>
-
-                {/* Tabs for Result Breakdown with modern pill design */}
-                <Box sx={{ borderBottom: 1, borderColor: 'rgba(255,255,255,0.1)', mb: 3 }}>
-                  <Tabs
-                    value={activeResultTab}
-                    onChange={(_, val) => setActiveResultTab(val)}
-                    variant="scrollable"
-                    scrollButtons="auto"
+        {/* STATE 3: Generated Full-Width Executive Dashboard */}
+        {!isAnalyzing && auditResult && !isEditingForm && (
+          <Box sx={{ width: '100%', mt: 1 }}>
+            {/* Executive Campaign Overview Card */}
+            <Card
+              sx={{
+                background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '24px',
+                p: { xs: 2.5, sm: 3.5, md: 4 },
+                mb: 3.5,
+                boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(56, 189, 248, 0.1)',
+              }}
+            >
+              <Grid container spacing={3} alignItems="center">
+                <Grid item xs={12} sm={4} md={3} sx={{ textAlign: 'center' }}>
+                  <Box
                     sx={{
-                      '& .MuiTab-root': {
-                        color: '#cbd5e1',
-                        fontWeight: 800,
-                        fontSize: { xs: '0.82rem', md: '0.9rem' },
-                        minHeight: 44,
-                        px: { xs: 1.8, md: 2.2 },
-                        py: 1,
-                        borderRadius: '12px',
-                        mr: 1,
-                        mb: 1,
-                        bgcolor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          bgcolor: 'rgba(56, 189, 248, 0.1)',
-                          color: '#ffffff',
-                          borderColor: 'rgba(56, 189, 248, 0.3)',
-                        },
-                        '&.Mui-selected': {
-                          color: '#38bdf8',
-                          bgcolor: 'rgba(56, 189, 248, 0.18)',
-                          border: '1.5px solid #38bdf8',
-                          boxShadow: '0 0 15px rgba(56, 189, 248, 0.3)',
-                        },
-                      },
-                      '& .MuiTabs-indicator': { display: 'none' },
+                      position: 'relative',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      background:
+                        auditResult.score >= 80
+                          ? 'conic-gradient(#10b981 0% 85%, rgba(255,255,255,0.1) 85% 100%)'
+                          : 'conic-gradient(#f59e0b 0% 65%, rgba(255,255,255,0.1) 65% 100%)',
+                      p: 1.2,
                     }}
                   >
-                    <Tab icon={<GuideIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="📍 منين تعمل إعلانك خطوة بخطوة" />
-                    <Tab icon={<TargetIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="🎯 مستشار الهدف (Sales أم WhatsApp أم Leads)" />
-                    <Tab icon={<TuneIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="🎯 الاستهداف الذكي (3 أنواع)" />
-                    <Tab icon={<CompareIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="اختبار أ/ب (A/B Test)" />
-                    <Tab icon={<CalculateIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="حاسبة العائد والميزانية" />
-                    <Tab icon={<PlayIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="سكريبت الريلز بالثواني" />
-                    <Tab icon={<AuditIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="الصح والغلط" />
-                    <Tab icon={<DoctorIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="دليل حل المشاكل (KPIs)" />
-                    <Tab icon={<ChatIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="اسأل مستشارك الذكي 💬" />
-                  </Tabs>
-                </Box>
-
-                {/* TAB 0: Beginner Step-by-Step Launch Guide */}
-                {activeResultTab === 0 && renderBeginnerAdLaunchGuide()}
-
-                {/* TAB 1: Campaign Objective Advisor (Sales vs Messages vs Leads) */}
-                {activeResultTab === 1 && renderCampaignObjectiveAdvisor()}
-
-                {/* TAB 2: 3-Tier Advanced Targeting & 72-Hour Testing Matrix */}
-                {activeResultTab === 2 && renderAdvancedThreeTierTargeting()}
-
-                {/* TAB 3: Automatic A/B Testing Generator */}
-                {activeResultTab === 3 && (
-                  <Stack spacing={2.5}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                      <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                        ⚖️ اختبار أ/ب التلقائي: شغّل الزاويتين معاً في مدير الإعلانات
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        bgcolor: '#0f172a',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography variant="h3" sx={{ fontWeight: 900, color: auditResult.score >= 80 ? '#10b981' : '#f59e0b', lineHeight: 1 }}>
+                        {auditResult.score}
                       </Typography>
-                      <Chip label="2 Creative Angles" sx={{ bgcolor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }} />
+                      <Typography variant="caption" sx={{ color: '#cbd5e1', fontSize: '0.75rem', fontWeight: 800, mt: 0.5 }}>
+                        من 100
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, mt: 1.5, color: '#f8fafc' }}>
+                    {auditResult.score >= 80 ? 'جاهزية إعلانية ممتازة 🚀' : 'بحاجة لبعض التعديل ⚠️'}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} sm={8} md={9}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <Chip
+                        size="medium"
+                        label={auditResult.isLiveGemini ? 'MarkNCode AI Pro ⚡ (Gemini AI Live)' : 'MarkNCode AI Engine 🤖'}
+                        sx={{
+                          bgcolor: auditResult.isLiveGemini ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)',
+                          color: auditResult.isLiveGemini ? '#34d399' : '#38bdf8',
+                          fontWeight: 800,
+                          border: auditResult.isLiveGemini ? '1px solid rgba(52, 211, 153, 0.4)' : 'none',
+                        }}
+                      />
+                      <Chip
+                        size="medium"
+                        label={`الميزانية: ${totalBudget} ج.م / ${campaignDays} أيام`}
+                        sx={{ bgcolor: 'rgba(37, 99, 235, 0.25)', color: '#93c5fd', fontWeight: 800 }}
+                      />
+                      <Chip
+                        size="medium"
+                        label={`الفئة: ${pricePoint === 'luxury' ? 'فاخر 💎' : pricePoint === 'mid' ? 'متوسط 🌟' : 'اقتصادي 🏷️'}`}
+                        sx={{ bgcolor: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', fontWeight: 700 }}
+                      />
                     </Box>
 
-                    <Grid container spacing={2}>
-                      {/* Angle A: FOMO */}
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: '16px', p: 3, height: '100%' }}>
-                          <Chip size="small" label="الزاوية الأولى: العاطفة والندرة" sx={{ bgcolor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', fontWeight: 800, mb: 2 }} />
-                          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#fbbf24', mb: 1.5 }}>
-                            {auditResult.abTestAngles?.angleA?.name}
-                          </Typography>
+                    {/* Prominent Quick Actions */}
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        onClick={() => setIsEditingForm(true)}
+                        startIcon={<TuneIcon sx={{ fontSize: 18 }} />}
+                        sx={{
+                          bgcolor: 'rgba(245, 158, 11, 0.2)',
+                          color: '#fbbf24',
+                          border: '1px solid rgba(245, 158, 11, 0.5)',
+                          borderRadius: '12px',
+                          fontWeight: 800,
+                          px: 2,
+                          py: 0.8,
+                          '&:hover': {
+                            bgcolor: 'rgba(245, 158, 11, 0.3)',
+                          },
+                        }}
+                      >
+                        ✏️ تعديل بيانات الإعلان
+                      </Button>
 
-                          <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '8px', mb: 2 }}>
-                            <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 800 }}>هوك الفيديو الافتتاحي (Hook):</Typography>
-                            <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700, mt: 0.5 }}>
-                              {auditResult.abTestAngles?.angleA?.hook}
-                            </Typography>
-                          </Box>
+                      <Button
+                        variant="outlined"
+                        onClick={handleExportFullCampaignPlan}
+                        startIcon={<ExportIcon sx={{ fontSize: 18 }} />}
+                        sx={{
+                          color: '#38bdf8',
+                          borderColor: 'rgba(56, 189, 248, 0.4)',
+                          borderRadius: '12px',
+                          fontWeight: 800,
+                          px: 2,
+                          py: 0.8,
+                          bgcolor: 'rgba(56, 189, 248, 0.08)',
+                          '&:hover': {
+                            borderColor: '#38bdf8',
+                            bgcolor: 'rgba(56, 189, 248, 0.18)',
+                          },
+                        }}
+                      >
+                        📥 نسخ الخطة بالكامل
+                      </Button>
 
-                          <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '8px', mb: 2 }}>
-                            <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>نص الإعلان (Ad Copy):</Typography>
-                            <Typography variant="body2" sx={{ color: '#cbd5e1', whiteSpace: 'pre-line', lineHeight: 1.6, mt: 0.5 }}>
-                              {auditResult.abTestAngles?.angleA?.primaryText}
-                            </Typography>
-                          </Box>
+                      <Button
+                        variant="outlined"
+                        onClick={handleStartNewCampaignPlan}
+                        startIcon={<ResetIcon sx={{ fontSize: 18 }} />}
+                        sx={{
+                          color: '#94a3b8',
+                          borderColor: 'rgba(148, 163, 184, 0.3)',
+                          borderRadius: '12px',
+                          fontWeight: 700,
+                          px: 2,
+                          py: 0.8,
+                          bgcolor: 'rgba(255, 255, 255, 0.03)',
+                          '&:hover': {
+                            borderColor: '#e2e8f0',
+                            bgcolor: 'rgba(255, 255, 255, 0.08)',
+                          },
+                        }}
+                      >
+                        🔄 خطة لمنتج جديد
+                      </Button>
+                    </Stack>
+                  </Box>
 
-                          <Box sx={{ p: 1.5, bgcolor: 'rgba(245, 158, 11, 0.08)', borderRadius: '8px' }}>
-                            <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 700, display: 'block' }}>
-                              🧠 السر النفسي: {auditResult.abTestAngles?.angleA?.psychologySecret}
-                            </Typography>
-                          </Box>
-                        </Card>
-                      </Grid>
+                  <Typography variant="body1" sx={{ color: '#e2e8f0', fontWeight: 700, mb: 1.2, lineHeight: 1.6, fontSize: '1.05rem' }}>
+                    {auditResult.feasibilityVerdict}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.95rem' }}>
+                    📈 النتائج المتوقعة: {auditResult.estimatedResults}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Card>
 
-                      {/* Angle B: Rational */}
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '16px', p: 3, height: '100%' }}>
-                          <Chip size="small" label="الزاوية الثانية: المنطق والجودة" sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800, mb: 2 }} />
-                          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#38bdf8', mb: 1.5 }}>
-                            {auditResult.abTestAngles?.angleB?.name}
-                          </Typography>
+            {/* The 4 Consolidated Intuitive Executive Tabs */}
+            <Box
+              sx={{
+                bgcolor: 'rgba(15, 23, 42, 0.75)',
+                p: 1.5,
+                borderRadius: '20px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                mb: 3.5,
+              }}
+            >
+              <Tabs
+                value={activeResultTab}
+                onChange={(_, val) => setActiveResultTab(val)}
+                variant="fullWidth"
+                sx={{
+                  '& .MuiTabs-flexContainer': {
+                    gap: { xs: 1, md: 1.5 },
+                  },
+                  '& .MuiTab-root': {
+                    color: '#94a3b8',
+                    fontWeight: 800,
+                    fontSize: { xs: '0.88rem', md: '1.05rem' },
+                    minHeight: 52,
+                    px: { xs: 1.5, md: 2.5 },
+                    py: 1.2,
+                    borderRadius: '14px',
+                    bgcolor: 'rgba(255, 255, 255, 0.03)',
+                    border: '1.5px solid rgba(255, 255, 255, 0.06)',
+                    transition: 'all 0.25s ease-in-out',
+                    textTransform: 'none',
+                    '&:hover': {
+                      bgcolor: 'rgba(56, 189, 248, 0.1)',
+                      color: '#ffffff',
+                      borderColor: 'rgba(56, 189, 248, 0.3)',
+                    },
+                    '&.Mui-selected': {
+                      color: '#ffffff',
+                      bgcolor: 'linear-gradient(135deg, rgba(37, 99, 235, 0.35) 0%, rgba(56, 189, 248, 0.25) 100%)',
+                      border: '1.5px solid #38bdf8',
+                      boxShadow: '0 4px 20px rgba(56, 189, 248, 0.25)',
+                    },
+                  },
+                  '& .MuiTabs-indicator': { display: 'none' },
+                }}
+              >
+                <Tab
+                  icon={<TargetIcon sx={{ fontSize: 22 }} />}
+                  iconPosition="start"
+                  label="🎯 الجمهور والاستهداف"
+                />
+                <Tab
+                  icon={<PlayIcon sx={{ fontSize: 22 }} />}
+                  iconPosition="start"
+                  label="🎬 نصوص وفيديوهات الإعلان"
+                />
+                <Tab
+                  icon={<CalculateIcon sx={{ fontSize: 22 }} />}
+                  iconPosition="start"
+                  label="💰 الميزانية والأرباح المتوقعة"
+                />
+                <Tab
+                  icon={<GuideIcon sx={{ fontSize: 22 }} />}
+                  iconPosition="start"
+                  label="🚀 دليل الإطلاق ومساعدك الذكي"
+                />
+              </Tabs>
+            </Box>
 
-                          <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '8px', mb: 2 }}>
-                            <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800 }}>هوك الفيديو الافتتاحي (Hook):</Typography>
-                            <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700, mt: 0.5 }}>
-                              {auditResult.abTestAngles?.angleB?.hook}
-                            </Typography>
-                          </Box>
+                {/* TAB 0: Targeting, Objective Advisor & 72-Hour Testing Matrix */}
+                {activeResultTab === 0 && (
+                  <Stack spacing={3}>
+                    <Box
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(56, 189, 248, 0.1) 100%)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(56, 189, 248, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <TargetIcon sx={{ color: '#38bdf8', fontSize: 26 }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ color: '#ffffff', fontWeight: 800 }}>
+                          🎯 خطتك للاستهداف وضبط الحملة في مدير الإعلانات
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1', lineHeight: 1.6 }}>
+                          حدد أولاً الهدف الصحيح (رسائل أم مبيعات أم ليدز)، ثم أنشئ الـ 3 مجموعات إعلانية المقترحة بالأسفل وطبّق جدول الـ 72 ساعة لإيقاف الجمهور الخاسر ومضاعفة الرابح.
+                        </Typography>
+                      </Box>
+                    </Box>
 
-                          <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '8px', mb: 2 }}>
-                            <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>نص الإعلان (Ad Copy):</Typography>
-                            <Typography variant="body2" sx={{ color: '#cbd5e1', whiteSpace: 'pre-line', lineHeight: 1.6, mt: 0.5 }}>
-                              {auditResult.abTestAngles?.angleB?.primaryText}
-                            </Typography>
-                          </Box>
+                    {/* Part A: Campaign Objective Advisor */}
+                    {renderCampaignObjectiveAdvisor()}
 
-                          <Box sx={{ p: 1.5, bgcolor: 'rgba(56, 189, 248, 0.08)', borderRadius: '8px' }}>
-                            <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 700, display: 'block' }}>
-                              🧠 السر النفسي: {auditResult.abTestAngles?.angleB?.psychologySecret}
-                            </Typography>
-                          </Box>
-                        </Card>
-                      </Grid>
-                    </Grid>
+                    {/* Part B: 3-Tier Advanced Targeting & 72-Hour Testing Matrix */}
+                    {renderAdvancedThreeTierTargeting()}
 
-                    {renderTechnicalSosBanner('إطلاق وفحص زوايا اختبار أ/ب في مدير الإعلانات')}
+                    {/* Part C: Technical SOS */}
+                    {renderTechnicalSosBanner('ضبط وتدقيق الاستهدافات الإعلانية في مدير الإعلانات')}
                   </Stack>
                 )}
 
-                {/* TAB 4: ROI & Budget Allocator Calculator */}
-                {activeResultTab === 4 && (
-                  <Stack spacing={2.5}>
-                    <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                      📊 حاسبة العائد والميزانية ومولد التوزيع التلقائي (ROI & Budget Allocator):
-                    </Typography>
+                {/* TAB 1: Creatives, A/B Test Angles, Reels Script & WhatsApp Bot */}
+                {activeResultTab === 1 && (
+                  <Stack spacing={3}>
+                    <Box
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%)',
+                        border: '1px solid rgba(168, 85, 247, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(168, 85, 247, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <PlayIcon sx={{ color: '#c084fc', fontSize: 26 }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ color: '#ffffff', fontWeight: 800 }}>
+                          🎬 نصوص وفيديوهات الإعلان ورسائل الواتساب الجاهزة
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1', lineHeight: 1.6 }}>
+                          استخدم زاويتي اختبار أ/ب لمعرفة أي رسالة تجذب عملاء أرخص، وصوّر سكريبت الريلز بالثواني، وانسخ رسائل الواتساب للرد الفوري على كل رسالة.
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Sub-Section 1: A/B Testing Angles */}
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                        <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '1rem' }}>
+                          ⚖️ أولاً: اختبار أ/ب للزوايا الإعلانية (شغّل الزاويتين معاً في الحملة)
+                        </Typography>
+                        <Chip label="2 Creative Angles" sx={{ bgcolor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', fontWeight: 700 }} />
+                      </Box>
+
+                      <Grid container spacing={2.5}>
+                        {/* Angle A: Emotional / FOMO */}
+                        <Grid item xs={12} md={6}>
+                          <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: '18px', p: 3, height: '100%' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                              <Chip size="small" label="الزاوية الأولى: العاطفة والندرة" sx={{ bgcolor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', fontWeight: 800 }} />
+                              <Button
+                                size="small"
+                                onClick={() => handleCopyText(`${auditResult.abTestAngles?.angleA?.hook}\n\n${auditResult.abTestAngles?.angleA?.primaryText}`, 'نص الزاوية الأولى')}
+                                startIcon={<CopyIcon sx={{ fontSize: 16 }} />}
+                                sx={{ color: '#fbbf24', fontSize: '0.78rem' }}
+                              >
+                                نسخ
+                              </Button>
+                            </Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#fbbf24', mb: 1.5 }}>
+                              {auditResult.abTestAngles?.angleA?.name}
+                            </Typography>
+
+                            <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '10px', mb: 2 }}>
+                              <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 800 }}>هوك الفيديو الافتتاحي (Hook):</Typography>
+                              <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700, mt: 0.5 }}>
+                                {auditResult.abTestAngles?.angleA?.hook}
+                              </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '10px', mb: 2 }}>
+                              <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>نص الإعلان الرئيسي (Ad Copy):</Typography>
+                              <Typography variant="body2" sx={{ color: '#cbd5e1', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 0.5 }}>
+                                {auditResult.abTestAngles?.angleA?.primaryText}
+                              </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 1.5, bgcolor: 'rgba(245, 158, 11, 0.08)', borderRadius: '10px' }}>
+                              <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 700, display: 'block' }}>
+                                🧠 السر النفسي: {auditResult.abTestAngles?.angleA?.psychologySecret}
+                              </Typography>
+                            </Box>
+                          </Card>
+                        </Grid>
+
+                        {/* Angle B: Logical / Quality */}
+                        <Grid item xs={12} md={6}>
+                          <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '18px', p: 3, height: '100%' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                              <Chip size="small" label="الزاوية الثانية: المنطق والجودة" sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }} />
+                              <Button
+                                size="small"
+                                onClick={() => handleCopyText(`${auditResult.abTestAngles?.angleB?.hook}\n\n${auditResult.abTestAngles?.angleB?.primaryText}`, 'نص الزاوية الثانية')}
+                                startIcon={<CopyIcon sx={{ fontSize: 16 }} />}
+                                sx={{ color: '#38bdf8', fontSize: '0.78rem' }}
+                              >
+                                نسخ
+                              </Button>
+                            </Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#38bdf8', mb: 1.5 }}>
+                              {auditResult.abTestAngles?.angleB?.name}
+                            </Typography>
+
+                            <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '10px', mb: 2 }}>
+                              <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800 }}>هوك الفيديو الافتتاحي (Hook):</Typography>
+                              <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700, mt: 0.5 }}>
+                                {auditResult.abTestAngles?.angleB?.hook}
+                              </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '10px', mb: 2 }}>
+                              <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>نص الإعلان الرئيسي (Ad Copy):</Typography>
+                              <Typography variant="body2" sx={{ color: '#cbd5e1', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 0.5 }}>
+                                {auditResult.abTestAngles?.angleB?.primaryText}
+                              </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 1.5, bgcolor: 'rgba(56, 189, 248, 0.08)', borderRadius: '10px' }}>
+                              <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 700, display: 'block' }}>
+                                🧠 السر النفسي: {auditResult.abTestAngles?.angleB?.psychologySecret}
+                              </Typography>
+                            </Box>
+                          </Card>
+                        </Grid>
+                      </Grid>
+                    </Box>
+
+                    {/* Sub-Section 2: Reels/TikTok Viral Script by Seconds */}
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                        <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '1rem' }}>
+                          🎬 ثانياً: سكريبت الفيديو الفيروسي مقسم بالثواني (0 - 30 ثانية)
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() =>
+                            handleCopyText(
+                              `${auditResult.videoScript?.hookSeconds}\n\n${auditResult.videoScript?.painPointSeconds}\n\n${auditResult.videoScript?.solutionSeconds}\n\n${auditResult.videoScript?.offerSeconds}\n\n${auditResult.videoScript?.ctaSeconds}`,
+                              'السكريبت بالكامل'
+                            )
+                          }
+                          startIcon={<CopyIcon />}
+                          sx={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.4)', borderRadius: '10px' }}
+                        >
+                          نسخ السكريبت بالكامل
+                        </Button>
+                      </Box>
+
+                      {/* Viral Hooks */}
+                      <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '16px', p: 3, mb: 2.5 }}>
+                        <Typography variant="subtitle2" sx={{ color: '#60a5fa', fontWeight: 800, mb: 1.5 }}>
+                          🎯 خطافات أول 3 ثوانٍ المقترحة لوقف التمرير (Stop-Scrolling Hooks):
+                        </Typography>
+                        <Stack spacing={1}>
+                          {auditResult.viralHooks?.map((h, i) => (
+                            <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.4, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '10px' }}>
+                              <Typography variant="body2" sx={{ color: '#e2e8f0', fontWeight: 600 }}>{h}</Typography>
+                              <IconButton size="small" onClick={() => handleCopyText(h, 'الهوك')}>
+                                <CopyIcon sx={{ color: '#38bdf8', fontSize: 18 }} />
+                              </IconButton>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Card>
+
+                      {/* Script Breakdown by seconds */}
+                      <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 3 }}>
+                        <Stack spacing={2}>
+                          <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(56, 189, 248, 0.08)', borderLeft: '4px solid #38bdf8' }}>
+                            <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                              الثواني 0 - 3: كسر النمط والخطاف الافتتاحي (Hook)
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                              {auditResult.videoScript?.hookSeconds}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(239, 68, 68, 0.08)', borderLeft: '4px solid #ef4444' }}>
+                            <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                              الثواني 4 - 10: استثارة نقطة الألم وتعميق المعاناة (Pain Point)
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                              {auditResult.videoScript?.painPointSeconds}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.08)', borderLeft: '4px solid #10b981' }}>
+                            <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                              الثواني 11 - 18: تقديم الحل والتحول الإيجابي (Solution)
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                              {auditResult.videoScript?.solutionSeconds}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(245, 158, 11, 0.08)', borderLeft: '4px solid #f59e0b' }}>
+                            <Typography variant="caption" sx={{ color: '#f59e0b', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                              الثواني 19 - 24: إطلاق العرض الذي لا يقاوم (Grand Slam Offer)
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                              {auditResult.videoScript?.offerSeconds}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(147, 51, 234, 0.08)', borderLeft: '4px solid #9333ea' }}>
+                            <Typography variant="caption" sx={{ color: '#c084fc', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                              الثواني 25 - 30: الدعوة الحاسمة للفعل (Call To Action)
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                              {auditResult.videoScript?.ctaSeconds}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
+                    </Box>
+
+                    {/* Sub-Section 3: Automated WhatsApp Follow-up Section */}
+                    {renderFollowUpBotSection()}
+
+                    {renderTechnicalSosBanner('كتابة الإعلانات وتصوير السكريبتات الفيروسية')}
+                  </Stack>
+                )}
+
+                {/* TAB 2: Budget Funnel Allocation & Interactive ROI Calculator */}
+                {activeResultTab === 2 && (
+                  <Stack spacing={3}>
+                    <Box
+                      sx={{
+                        p: 2.5,
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(16, 185, 129, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <CalculateIcon sx={{ color: '#10b981', fontSize: 26 }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ color: '#ffffff', fontWeight: 800 }}>
+                          💰 حاسبة الميزانية والأرباح والعائد الاستثماري (ROAS)
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1', lineHeight: 1.6 }}>
+                          تعرف على كيفية تقسيم ميزانيتك اليومية بين العملاء الجدد وإعادة الاستهداف، واستخدم الحاسبة التفاعلية لحساب صافي أرباحك وعائدك المالي بالأرقام الدقيقة.
+                        </Typography>
+                      </Box>
+                    </Box>
 
                     {/* Funnel Budget Allocator */}
-                    <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '16px', p: 3 }}>
+                    <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(59, 130, 246, 0.35)', borderRadius: '18px', p: 3 }}>
                       <Typography variant="subtitle1" sx={{ color: '#ffffff', fontWeight: 800, mb: 1 }}>
                         تقسيم الميزانية اليومية ({dailyCalculatedBudget} ج.م / يومياً):
                       </Typography>
@@ -5012,26 +5276,26 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
 
                       <Grid container spacing={2}>
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(37, 99, 235, 0.15)', border: '1px solid rgba(37, 99, 235, 0.3)' }}>
-                            <Typography variant="caption" sx={{ color: '#93c5fd' }}>
+                          <Box sx={{ p: 2.2, borderRadius: '14px', bgcolor: 'rgba(37, 99, 235, 0.15)', border: '1px solid rgba(37, 99, 235, 0.3)' }}>
+                            <Typography variant="caption" sx={{ color: '#93c5fd', fontWeight: 700 }}>
                               70% اختبار الجمهور البارد (Cold Audience):
                             </Typography>
                             <Typography variant="h5" sx={{ color: '#ffffff', fontWeight: 900, mt: 0.5 }}>
                               {auditResult.budgetFunnelAllocation?.coldTestingDaily} ج.م / يومياً
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#cbd5e1' }}>لجلب عملاء جدد عبر الفيديوهات</Typography>
+                            <Typography variant="caption" sx={{ color: '#cbd5e1' }}>لجلب عملاء جدد عبر الفيديوهات والريلز</Typography>
                           </Box>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                            <Typography variant="caption" sx={{ color: '#a7f3d0' }}>
+                          <Box sx={{ p: 2.2, borderRadius: '14px', bgcolor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                            <Typography variant="caption" sx={{ color: '#a7f3d0', fontWeight: 700 }}>
                               30% إعادة الاستهداف (Retargeting):
                             </Typography>
                             <Typography variant="h5" sx={{ color: '#10b981', fontWeight: 900, mt: 0.5 }}>
                               {auditResult.budgetFunnelAllocation?.retargetingDaily} ج.م / يومياً
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#cbd5e1' }}>لحصد مبيعات المتفاعلين وزوار الصفحة</Typography>
+                            <Typography variant="caption" sx={{ color: '#cbd5e1' }}>لحصد مبيعات المتفاعلين وزوار صفحتك</Typography>
                           </Box>
                         </Grid>
                       </Grid>
@@ -5047,8 +5311,8 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                       const calcRoas = Number((calcRevenue / Math.max(totalBudget, 1)).toFixed(1));
 
                       return (
-                        <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '16px', p: 3 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '18px', p: 3 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                             <Typography variant="subtitle1" sx={{ color: '#10b981', fontWeight: 800 }}>
                               الأرقام التقديرية للأرباح والعائد (Expected ROI & Profit):
                             </Typography>
@@ -5056,7 +5320,7 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                           </Box>
 
                           {/* Dynamic CPA Slider */}
-                          <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', mb: 3 }}>
+                          <Box sx={{ p: 2.2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)', mb: 3 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                               <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 700 }}>
                                 🎛️ جرب سيناريوهات مختلفة: غيّر تكلفة اكتساب العميل المتوقعة (CPA):
@@ -5085,36 +5349,36 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
 
                           <Grid container spacing={2}>
                             <Grid item xs={6} sm={3}>
-                              <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
+                              <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                                 <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>تكلفة العميل (CPA):</Typography>
-                                <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 800 }}>
+                                <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 800, mt: 0.5 }}>
                                   ~{effectiveCpa} ج.م
                                 </Typography>
                               </Box>
                             </Grid>
 
                             <Grid item xs={6} sm={3}>
-                              <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
+                              <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                                 <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>المبيعات المتوقعة:</Typography>
-                                <Typography variant="h6" sx={{ color: '#38bdf8', fontWeight: 800 }}>
+                                <Typography variant="h6" sx={{ color: '#38bdf8', fontWeight: 800, mt: 0.5 }}>
                                   {calcConversions} عميل
                                 </Typography>
                               </Box>
                             </Grid>
 
                             <Grid item xs={6} sm={3}>
-                              <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
+                              <Box sx={{ p: 1.8, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                                 <Typography variant="caption" sx={{ color: '#cbd5e1', fontWeight: 700 }}>صافي الربح المتوقع:</Typography>
-                                <Typography variant="h6" sx={{ color: calcNetProfit >= 0 ? '#10b981' : '#ef4444', fontWeight: 800 }}>
+                                <Typography variant="h6" sx={{ color: calcNetProfit >= 0 ? '#10b981' : '#ef4444', fontWeight: 800, mt: 0.5 }}>
                                   {calcNetProfit.toLocaleString()} ج.م
                                 </Typography>
                               </Box>
                             </Grid>
 
                             <Grid item xs={6} sm={3}>
-                              <Box sx={{ p: 1.5, bgcolor: 'rgba(245, 158, 11, 0.1)', borderRadius: '10px' }}>
+                              <Box sx={{ p: 1.8, bgcolor: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
                                 <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 700 }}>العائد على الصرف (ROAS):</Typography>
-                                <Typography variant="h6" sx={{ color: '#fbbf24', fontWeight: 900 }}>
+                                <Typography variant="h6" sx={{ color: '#fbbf24', fontWeight: 900, mt: 0.5 }}>
                                   {calcRoas}x ضعف
                                 </Typography>
                               </Box>
@@ -5128,304 +5392,268 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                   </Stack>
                 )}
 
-                {/* TAB 5: Reels/TikTok Script by Seconds */}
-                {activeResultTab === 5 && (
-                  <Stack spacing={2.5}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                        🎬 سكريبت الفيديو الفيروسي مقسم بالثواني (0 - 30 ثانية)
-                      </Typography>
-                      <Button
-                        size="small"
-                        onClick={() =>
-                          handleCopyText(
-                            `${auditResult.videoScript?.hookSeconds}\n\n${auditResult.videoScript?.painPointSeconds}\n\n${auditResult.videoScript?.solutionSeconds}\n\n${auditResult.videoScript?.offerSeconds}\n\n${auditResult.videoScript?.ctaSeconds}`,
-                            'السكريبت بالكامل'
-                          )
-                        }
-                        startIcon={<CopyIcon />}
-                        sx={{ color: '#38bdf8' }}
-                      >
-                        نسخ السكريبت
-                      </Button>
-                    </Box>
-
-                    {/* Viral Hooks */}
-                    <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '16px', p: 3 }}>
-                      <Typography variant="subtitle2" sx={{ color: '#60a5fa', fontWeight: 800, mb: 1.5 }}>
-                        🎯 خطافات أول 3 ثوانٍ المقترحة (Stop-Scrolling Hooks):
-                      </Typography>
-                      <Stack spacing={1}>
-                        {auditResult.viralHooks?.map((h, i) => (
-                          <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.2, bgcolor: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
-                            <Typography variant="body2" sx={{ color: '#e2e8f0' }}>{h}</Typography>
-                            <IconButton size="small" onClick={() => handleCopyText(h, 'الهوك')}>
-                              <CopyIcon sx={{ color: '#38bdf8', fontSize: 16 }} />
-                            </IconButton>
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Card>
-
-                    {/* Script Breakdown by seconds */}
-                    <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 3 }}>
-                      <Stack spacing={2}>
-                        <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(56, 189, 248, 0.08)', borderLeft: '4px solid #38bdf8' }}>
-                          <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            الثواني 0 - 3: كسر النمط والخطاف الافتتاحي
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
-                            {auditResult.videoScript?.hookSeconds}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(239, 68, 68, 0.08)', borderLeft: '4px solid #ef4444' }}>
-                          <Typography variant="caption" sx={{ color: '#ef4444', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            الثواني 4 - 10: استثارة نقطة الألم وتعميق المعاناة
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
-                            {auditResult.videoScript?.painPointSeconds}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.08)', borderLeft: '4px solid #10b981' }}>
-                          <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            الثواني 11 - 18: تقديم الحل والتحول الإيجابي
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
-                            {auditResult.videoScript?.solutionSeconds}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(245, 158, 11, 0.08)', borderLeft: '4px solid #f59e0b' }}>
-                          <Typography variant="caption" sx={{ color: '#f59e0b', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            الثواني 19 - 24: إطلاق العرض الذي لا يقاوم (Grand Slam Offer)
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
-                            {auditResult.videoScript?.offerSeconds}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(147, 51, 234, 0.08)', borderLeft: '4px solid #9333ea' }}>
-                          <Typography variant="caption" sx={{ color: '#c084fc', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            الثواني 25 - 30: الدعوة الحاسمة للفعل (Call To Action)
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#e2e8f0', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
-                            {auditResult.videoScript?.ctaSeconds}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Card>
-                  </Stack>
-                )}
-
-                {/* TAB 6: Right vs Wrong */}
-                {activeResultTab === 6 && (
-                  <Stack spacing={2.5}>
-                    <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                      ⚖️ تدقيق الميديا باير: كشف الأخطاء القاتلة والصواب الإلزامي
-                    </Typography>
-
-                    {auditResult.rightWrongAudits?.map((item, idx) => (
-                      <Card
-                        key={idx}
-                        sx={{
-                          bgcolor: 'rgba(15, 23, 42, 0.75)',
-                          border: item.isCorrect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                          borderRadius: '16px',
-                          p: 3,
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#f8fafc' }}>
-                            {item.topic}
-                          </Typography>
-                          <Chip
-                            size="small"
-                            label={item.statusText}
-                            sx={{
-                              bgcolor: item.isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                              color: item.isCorrect ? '#10b981' : '#ef4444',
-                              fontWeight: 700,
-                            }}
-                          />
-                        </Box>
-
-                        <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(239, 68, 68, 0.08)', mb: 1.5, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                          <Typography variant="caption" sx={{ color: '#fca5a5', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            ⚠️ الغلط ولماذا سيفشل الإعلان:
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#fecaca', lineHeight: 1.6 }}>
-                            {item.theWrong}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                          <Typography variant="caption" sx={{ color: '#86efac', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            ✔️ الصح والتصحيح الإلزامي المعتمد:
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#bbf7d0', lineHeight: 1.6 }}>
-                            {item.theRight}
-                          </Typography>
-                        </Box>
-                      </Card>
-                    ))}
-
-                    {renderTechnicalSosBanner('تصحيح الأخطاء القاتلة في الحملة')}
-                  </Stack>
-                )}
-
-                {/* TAB 7: Troubleshooting Doctor */}
-                {activeResultTab === 7 && (
-                  <Stack spacing={2.5}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                        🩺 طبيب قراءة النتائج وحل المشاكل (Troubleshooting Guide):
-                      </Typography>
-                      <Chip label="إذا واجهت أي هبوط" sx={{ bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#fbbf24' }} />
-                    </Box>
-
-                    {auditResult.troubleshootingGuide?.map((item, idx) => (
-                      <Card key={idx} sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 2.5 }}>
-                        <Typography variant="subtitle1" sx={{ color: '#f87171', fontWeight: 800, mb: 1 }}>
-                          🚨 المشكلة: {item.kpiProblem}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#cbd5e1', mb: 1.5, lineHeight: 1.5 }}>
-                          <strong>التشخيص الخوارزمي:</strong> {item.diagnosis}
-                        </Typography>
-                        <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                          <Typography variant="caption" sx={{ color: '#86efac', fontWeight: 700, display: 'block' }}>
-                            🛠️ الحل العملي الفوري: {item.actionToTake}
-                          </Typography>
-                        </Box>
-                      </Card>
-                    ))}
-
-                    {/* Technical SOS Banner */}
-                    {renderTechnicalSosBanner('حل مشاكل انخفاض النتائج وارتفاع تكلفة النقرة')}
-
-                    {/* Automated 5-Day WhatsApp Follow-up Section */}
-                    {renderFollowUpBotSection()}
-                  </Stack>
-                )}
-
-                {/* TAB 8: Interactive MarkNCode AI Chat Consultant */}
-                {activeResultTab === 8 && (
-                  <Stack spacing={2.5}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                        💬 محادثة مباشرة مع مستشارك الإعلاني لحملتك
-                      </Typography>
-                      <Chip
-                        size="small"
-                        icon={<SparkleIcon sx={{ fontSize: 14, color: '#38bdf8 !important' }} />}
-                        label="مستشارك الذكي متصل ومستعد للإجابة"
-                        sx={{ bgcolor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8' }}
-                      />
-                    </Box>
-
-                    {/* Chat Box */}
-                    <Card
+                {/* TAB 3: Step-by-Step Launch Guide, Do\'s & Don\'ts, Troubleshooting & Live AI Chat */}
+                {activeResultTab === 3 && (
+                  <Stack spacing={3}>
+                    <Box
                       sx={{
-                        bgcolor: 'rgba(15, 23, 42, 0.9)',
-                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                        borderRadius: '20px',
-                        p: 3,
-                        minHeight: 380,
-                        maxHeight: 520,
-                        overflowY: 'auto',
+                        p: 2.5,
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
                         display: 'flex',
-                        flexDirection: 'column',
+                        alignItems: 'center',
                         gap: 2,
                       }}
                     >
-                      {chatMessages.map((msg, idx) => (
-                        <Box
-                          key={idx}
-                          sx={{
-                            alignSelf: msg.role === 'user' ? 'flex-start' : 'flex-end',
-                            maxWidth: '85%',
-                            p: 2,
-                            borderRadius: '16px',
-                            bgcolor: msg.role === 'user' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(30, 41, 59, 0.9)',
-                            border: msg.role === 'user' ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ color: msg.role === 'user' ? '#93c5fd' : '#38bdf8', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            {msg.role === 'user' ? 'أنت 👤' : 'مستشار MarkNCode AI 🤖'}
-                          </Typography>
-                          <Typography variant="body2" sx={{ color: '#f1f5f9', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
-                            {msg.text}
-                          </Typography>
-                        </Box>
-                      ))}
-
-                      {isChatLoading && (
-                        <Box sx={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 1, p: 2 }}>
-                          <CircularProgress size={16} sx={{ color: '#38bdf8' }} />
-                          <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 700 }}>
-                            المستشار الذكي يحلل ويكتب الإجابة...
-                          </Typography>
-                        </Box>
-                      )}
-                    </Card>
-
-                    {/* Chat Input Bar */}
-                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-                      <TextField
-                        fullWidth
-                        placeholder="اسأل مستشارك الذكي أي شيء (مثلاً: ازاي أوزع الـ 5000 ج.م على مدار الـ 7 أيام؟ أو اكتب لي سكريبت فكاهي)..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSendChatMessage();
-                        }}
-                        size="medium"
+                      <Box
                         sx={{
-                          '& input': {
-                            color: '#ffffff',
-                            fontSize: '0.95rem',
-                            fontWeight: 600,
-                            py: 1.4,
-                          },
-                          '& input::placeholder': {
-                            color: 'rgba(255, 255, 255, 0.6) !important',
-                            opacity: 1,
-                          },
-                          bgcolor: 'rgba(15, 23, 42, 0.9)',
-                          borderRadius: '14px',
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: '14px',
-                            border: '1.5px solid rgba(59, 130, 246, 0.4)',
-                            '&:hover': { borderColor: '#38bdf8' },
-                            '&.Mui-focused': { borderColor: '#38bdf8' },
-                          },
-                        }}
-                      />
-                      <Button
-                        variant="contained"
-                        onClick={handleSendChatMessage}
-                        disabled={isChatLoading || !chatInput.trim()}
-                        sx={{
-                          borderRadius: '14px',
-                          background: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
-                          minWidth: 56,
-                          minHeight: 50,
-                          px: 2.5,
-                          boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)',
+                          width: 48,
+                          height: 48,
+                          borderRadius: '12px',
+                          bgcolor: 'rgba(56, 189, 248, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
                         }}
                       >
-                        <SendIcon sx={{ fontSize: 22 }} />
-                      </Button>
+                        <GuideIcon sx={{ color: '#38bdf8', fontSize: 26 }} />
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ color: '#ffffff', fontWeight: 800 }}>
+                          🚀 دليل تشغيل الإعلان وحل المشاكل ومستشارك الذكي
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1', lineHeight: 1.6 }}>
+                          اتبع خطوات إطلاق الإعلان في مدير الإعلانات، وتجنب الأخطاء الشائعة، واقرأ حلول المشاكل، أو اسأل مستشارك الإعلاني مباشرة عن أي تفصيلة في حملتك.
+                        </Typography>
+                      </Box>
                     </Box>
+
+                    {/* Step-by-Step Launch Guide */}
+                    {renderBeginnerAdLaunchGuide()}
+
+                    {/* Right vs Wrong Audits */}
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800, mb: 2, fontSize: '1rem' }}>
+                        ⚖️ كشف الأخطاء القاتلة والصواب الإلزامي (Right vs Wrong):
+                      </Typography>
+                      <Stack spacing={2}>
+                        {auditResult.rightWrongAudits?.map((item, idx) => (
+                          <Card
+                            key={idx}
+                            sx={{
+                              bgcolor: 'rgba(15, 23, 42, 0.75)',
+                              border: item.isCorrect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
+                              borderRadius: '16px',
+                              p: 2.5,
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#f8fafc' }}>
+                                {item.topic}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                label={item.statusText}
+                                sx={{
+                                  bgcolor: item.isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                  color: item.isCorrect ? '#10b981' : '#ef4444',
+                                  fontWeight: 700,
+                                }}
+                              />
+                            </Box>
+
+                            <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(239, 68, 68, 0.08)', mb: 1.5, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                              <Typography variant="caption" sx={{ color: '#fca5a5', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                                ⚠️ الغلط ولماذا سيفشل الإعلان:
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: '#fecaca', lineHeight: 1.6 }}>
+                                {item.theWrong}
+                              </Typography>
+                            </Box>
+
+                            <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                              <Typography variant="caption" sx={{ color: '#86efac', fontWeight: 700, display: 'block', mb: 0.5 }}>
+                                ✔️ الصح والتصحيح الإلزامي المعتمد:
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: '#bbf7d0', lineHeight: 1.6 }}>
+                                {item.theRight}
+                              </Typography>
+                            </Box>
+                          </Card>
+                        ))}
+                      </Stack>
+                    </Box>
+
+                    {/* Troubleshooting Doctor */}
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                        <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '1rem' }}>
+                          🩺 طبيب قراءة النتائج وحل المشاكل (Troubleshooting Guide):
+                        </Typography>
+                        <Chip label="إذا واجهت أي هبوط" sx={{ bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#fbbf24', fontWeight: 700 }} />
+                      </Box>
+                      <Stack spacing={2}>
+                        {auditResult.troubleshootingGuide?.map((item, idx) => (
+                          <Card key={idx} sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 2.5 }}>
+                            <Typography variant="subtitle1" sx={{ color: '#f87171', fontWeight: 800, mb: 1 }}>
+                              🚨 المشكلة: {item.kpiProblem}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#cbd5e1', mb: 1.5, lineHeight: 1.6 }}>
+                              <strong>التشخيص الخوارزمي:</strong> {item.diagnosis}
+                            </Typography>
+                            <Box sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                              <Typography variant="caption" sx={{ color: '#86efac', fontWeight: 700, display: 'block' }}>
+                                🛠️ الحل العملي الفوري: {item.actionToTake}
+                              </Typography>
+                            </Box>
+                          </Card>
+                        ))}
+                      </Stack>
+                    </Box>
+
+                    {/* Interactive MarkNCode AI Chat Consultant */}
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                        <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800, fontSize: '1rem' }}>
+                          💬 اسأل مستشارك الإعلاني الذكي عن أي استفسار
+                        </Typography>
+                        <Chip
+                          size="small"
+                          icon={<SparkleIcon sx={{ fontSize: 14, color: '#38bdf8 !important' }} />}
+                          label="مستشارك متصل ومستعد للإجابة"
+                          sx={{ bgcolor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', fontWeight: 700 }}
+                        />
+                      </Box>
+
+                      {/* Chat Box */}
+                      <Card
+                        sx={{
+                          bgcolor: 'rgba(15, 23, 42, 0.9)',
+                          border: '1px solid rgba(59, 130, 246, 0.3)',
+                          borderRadius: '20px',
+                          p: 3,
+                          minHeight: 320,
+                          maxHeight: 460,
+                          overflowY: 'auto',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 2,
+                        }}
+                      >
+                        {chatMessages.length === 0 && (
+                          <Box sx={{ textAlign: 'center', py: 4, my: 'auto' }}>
+                            <Box
+                              sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: '16px',
+                                bgcolor: 'rgba(56, 189, 248, 0.1)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mx: 'auto',
+                                mb: 1.5,
+                              }}
+                            >
+                              <ChatIcon sx={{ color: '#38bdf8', fontSize: 28 }} />
+                            </Box>
+                            <Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 800 }}>
+                              لديك سؤال محدد عن حملتك الإعلانية؟
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#94a3b8', maxWidth: 440, mx: 'auto', mt: 0.5 }}>
+                              اكتب استفسارك بالأسفل وسيقوم الذكاء الاصطناعي بتحليله فوراً بناءً على ميزانيتك ونوع منتجك وجمهورك المستهدف.
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {chatMessages.map((msg, idx) => (
+                          <Box
+                            key={idx}
+                            sx={{
+                              alignSelf: msg.role === 'user' ? 'flex-start' : 'flex-end',
+                              maxWidth: '85%',
+                              p: 2,
+                              borderRadius: '16px',
+                              bgcolor: msg.role === 'user' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(30, 41, 59, 0.9)',
+                              border: msg.role === 'user' ? '1px solid rgba(37, 99, 235, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                            }}
+                          >
+                            <Typography variant="caption" sx={{ color: msg.role === 'user' ? '#93c5fd' : '#38bdf8', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                              {msg.role === 'user' ? 'أنت' : 'مستشار MarkNCode'}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#f8fafc', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
+                              {msg.text}
+                            </Typography>
+                          </Box>
+                        ))}
+
+                        {isChatLoading && (
+                          <Box sx={{ alignSelf: 'flex-end', p: 2, bgcolor: 'rgba(30, 41, 59, 0.9)', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <CircularProgress size={18} sx={{ color: '#38bdf8' }} />
+                            <Typography variant="body2" sx={{ color: '#38bdf8' }}>جاري صياغة الاستشارة...</Typography>
+                          </Box>
+                        )}
+                      </Card>
+
+                      {/* Chat Input */}
+                      <Box sx={{ display: 'flex', gap: 1.5, mt: 1.5 }}>
+                        <TextField
+                          fullWidth
+                          placeholder="اكتب استفسارك هنا (مثال: هل أزود الميزانية لو النتائج كويسة؟)..."
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSendChatMessage();
+                          }}
+                          size="medium"
+                          sx={{
+                            '& input': {
+                              color: '#ffffff',
+                              fontSize: '0.95rem',
+                              fontWeight: 600,
+                              py: 1.4,
+                            },
+                            '& input::placeholder': {
+                              color: 'rgba(255, 255, 255, 0.6) !important',
+                              opacity: 1,
+                            },
+                            bgcolor: 'rgba(15, 23, 42, 0.9)',
+                            borderRadius: '14px',
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '14px',
+                              border: '1.5px solid rgba(59, 130, 246, 0.4)',
+                              '&:hover': { borderColor: '#38bdf8' },
+                              '&.Mui-focused': { borderColor: '#38bdf8' },
+                            },
+                          }}
+                        />
+                        <Button
+                          variant="contained"
+                          onClick={handleSendChatMessage}
+                          disabled={isChatLoading || !chatInput.trim()}
+                          sx={{
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+                            minWidth: 56,
+                            minHeight: 50,
+                            px: 2.5,
+                            boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)',
+                          }}
+                        >
+                          <SendIcon sx={{ fontSize: 22 }} />
+                        </Button>
+                      </Box>
+                    </Box>
+
+                    {renderTechnicalSosBanner('استشارة فنية متقدمة لإطلاق وتوسيع الحملة')}
                   </Stack>
                 )}
-              </Box>
-            )}
-          </Grid>
-        </Grid>
-        </Box>
-      </Container>
+          </Box>
+        )}
+      </Box>
+    </Container>
 
       {/* Auth Required Dialog Modal */}
       <Dialog
