@@ -54,11 +54,99 @@ const STORAGE_KEY_USER_PREFIX = 'mnc_pay_active_';
 const CLOUD_KV_BASE = 'https://keyvalue.immanuel.co/api/KeyVal';
 const CLOUD_KV_APP_KEY = 'hr4hcm6c';
 
+// Cloud key namespaces
+const CLOUD_INDEX_KEY = 'mnc_order_ids_v2';
+const CLOUD_ORDER_PREFIX = 'ord_';
+const CLOUD_STAT_PREFIX = 'stat_';
+const CLOUD_USER_PREFIX = 'usr_';
+const NTFY_TOPIC = 'mnc_admin_orders_2026';
+
 /**
  * Normalizes email to a URL-safe key (alphanumeric and underscores only)
  */
 export function getSafeEmailKey(email: string): string {
   return email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
+
+/**
+ * Safe Base64URL encoder for UTF-8 strings (browser & Node compatible)
+ */
+export function toBase64Url(str: string): string {
+  try {
+    const utf8Bytes = new TextEncoder().encode(str);
+    let binary = '';
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]);
+    }
+    return btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * Safe Base64URL decoder for UTF-8 strings (browser & Node compatible)
+ */
+export function fromBase64Url(b64: string): string {
+  try {
+    let base64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) base64 += '=';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * Serializes payment order to compact URL-safe string
+ */
+export function serializeOrder(o: PaymentOrderData): string {
+  return toBase64Url([
+    o.orderId || '',
+    o.userEmail || '',
+    o.userName || '',
+    o.amount || 200,
+    o.paymentMethod || 'vodafone_cash',
+    o.senderPhone || '',
+    o.status || 'pending',
+    o.createdAt || new Date().toISOString(),
+    o.approvedAt || '',
+    o.notes || ''
+  ].join('~'));
+}
+
+/**
+ * Deserializes compact URL-safe string back to payment order
+ */
+export function deserializeOrder(encoded: string): PaymentOrderData | null {
+  try {
+    const raw = fromBase64Url(encoded);
+    if (!raw) return null;
+    const parts = raw.split('~');
+    if (parts.length < 7) return null;
+    return {
+      orderId: parts[0],
+      userEmail: parts[1],
+      userName: parts[2] || parts[1],
+      amount: Number(parts[3]) || ADMIN_CONFIG.amountEGP || 200,
+      paymentMethod: (parts[4] as PaymentMethod) || 'vodafone_cash',
+      senderPhone: parts[5] || '',
+      status: (parts[6] as PaymentStatus) || 'pending',
+      createdAt: parts[7] || new Date().toISOString(),
+      approvedAt: parts[8] || undefined,
+      notes: parts[9] || undefined,
+    };
+  } catch (e) {
+    return null;
+  }
 }
 
 /**
@@ -105,10 +193,10 @@ export async function setCloudApproval(
 ): Promise<boolean> {
   const promises: Promise<boolean>[] = [];
   if (orderId) {
-    promises.push(setCloudValue(`ord_${orderId}`, status));
+    promises.push(setCloudValue(`${CLOUD_STAT_PREFIX}${orderId}`, status));
   }
   if (userEmail) {
-    promises.push(setCloudValue(`usr_${getSafeEmailKey(userEmail)}`, status));
+    promises.push(setCloudValue(`${CLOUD_USER_PREFIX}${getSafeEmailKey(userEmail)}`, status));
   }
   const results = await Promise.all(promises);
   return results.some(Boolean);
@@ -124,14 +212,14 @@ export async function getCloudApproval(
   try {
     // 1. Check user key first (cross-device user access)
     if (userEmail) {
-      const userVal = await getCloudValue(`usr_${getSafeEmailKey(userEmail)}`);
+      const userVal = await getCloudValue(`${CLOUD_USER_PREFIX}${getSafeEmailKey(userEmail)}`);
       if (userVal === 'approved' || userVal === 'rejected' || userVal === 'pending' || userVal === 'used') {
         return userVal as PaymentStatus;
       }
     }
     // 2. Check order key
     if (orderId) {
-      const ordVal = await getCloudValue(`ord_${orderId}`);
+      const ordVal = await getCloudValue(`${CLOUD_STAT_PREFIX}${orderId}`);
       if (ordVal === 'approved' || ordVal === 'rejected' || ordVal === 'pending' || ordVal === 'used') {
         return ordVal as PaymentStatus;
       }
@@ -175,36 +263,72 @@ export function getAllPaymentOrders(): PaymentOrderData[] {
  */
 export async function syncOrdersFromCloud(): Promise<PaymentOrderData[]> {
   try {
-    const local = getAllPaymentOrders();
-    let updated = false;
+    // 1. Fetch Cloud Global Order IDs Index
+    const indexStr = (await getCloudValue(CLOUD_INDEX_KEY)) || '';
+    const cloudIds = indexStr ? indexStr.split(',').filter(Boolean) : [];
 
-    // Check each pending order against Cloud KV to sync status if admin approved elsewhere
-    await Promise.all(
-      local.map(async (order) => {
-        if (order.status === 'pending') {
-          const cloudStatus = await getCloudApproval(order.orderId, order.userEmail);
-          if (cloudStatus && cloudStatus !== 'pending') {
-            order.status = cloudStatus;
-            if (cloudStatus === 'approved') {
-              order.approvedAt = order.approvedAt || new Date().toISOString();
-              localStorage.setItem(`mnc_approved_${order.orderId}`, 'true');
-              if (order.userEmail) {
-                localStorage.setItem(`mnc_approved_user_${order.userEmail.toLowerCase()}`, 'true');
+    const fetchedCloudOrders: PaymentOrderData[] = [];
+
+    // 2. Fetch all cloud orders in parallel
+    if (cloudIds.length > 0) {
+      await Promise.all(
+        cloudIds.map(async (id) => {
+          try {
+            const rawVal = await getCloudValue(`${CLOUD_ORDER_PREFIX}${id}`);
+            if (rawVal) {
+              const parsed = deserializeOrder(rawVal);
+              if (parsed) {
+                // Also check if live status was updated separately
+                const liveStat = await getCloudValue(`${CLOUD_STAT_PREFIX}${id}`);
+                if (liveStat && liveStat !== 'null' && liveStat !== parsed.status) {
+                  parsed.status = liveStat as PaymentStatus;
+                  if (liveStat === 'approved') {
+                    parsed.approvedAt = parsed.approvedAt || new Date().toISOString();
+                  }
+                }
+                fetchedCloudOrders.push(parsed);
               }
-            } else if (cloudStatus === 'rejected') {
-              localStorage.setItem(`mnc_rejected_${order.orderId}`, 'true');
             }
-            updated = true;
-          }
-        }
-      })
-    );
-
-    if (updated) {
-      localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(local));
+          } catch (e) {}
+        })
+      );
     }
 
-    return local;
+    // 3. Merge with local registry
+    const local = getAllPaymentOrders();
+    const map = new Map<string, PaymentOrderData>();
+
+    // Local orders first
+    for (const o of local) {
+      if (o?.orderId) map.set(o.orderId, o);
+    }
+
+    // Overwrite/insert with cloud orders (cloud has latest cross-device data)
+    for (const o of fetchedCloudOrders) {
+      if (o?.orderId) {
+        const existing = map.get(o.orderId);
+        if (!existing) {
+          map.set(o.orderId, o);
+        } else {
+          map.set(o.orderId, {
+            ...existing,
+            ...o,
+            status: o.status || existing.status,
+            approvedAt: o.approvedAt || existing.approvedAt,
+          });
+        }
+      }
+    }
+
+    const merged = Array.from(map.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    if (merged.length > 0) {
+      localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(merged));
+    }
+
+    return merged;
   } catch (e) {
     console.warn('Cloud sync error, using local orders:', e);
     return getAllPaymentOrders();
@@ -216,7 +340,6 @@ export async function syncOrdersFromCloud(): Promise<PaymentOrderData[]> {
  */
 export async function pushOrdersToCloud(orders: PaymentOrderData[]): Promise<boolean> {
   try {
-    // Sync statuses of approved/rejected orders to Cloud KV
     await Promise.all(
       orders.map(async (o) => {
         if (o.status === 'approved' || o.status === 'rejected') {
@@ -269,7 +392,7 @@ export function buildWhatsAppNotificationUrl(
 }
 
 /**
- * Creates a new payment order, stores in central registry & cloud database, and sends email notification to admin
+ * Creates a new payment order, stores in central registry & cloud database, and sends notifications to admin
  */
 export async function submitPaymentTransferRequest(params: {
   userEmail: string;
@@ -278,7 +401,7 @@ export async function submitPaymentTransferRequest(params: {
   paymentMethod: PaymentMethod;
 }): Promise<PaymentOrder> {
   const orderId = `MNC-${Date.now().toString().slice(-6)}`;
-  const origin = window.location.origin;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://markncode.com';
   const adminDashboardUrl = `${origin}/admin`;
   const methodLabel = params.paymentMethod === 'vodafone_cash' ? 'فودافون كاش' : 'انستا باي';
 
@@ -305,8 +428,29 @@ export async function submitPaymentTransferRequest(params: {
     localStorage.setItem(`mnc_order_${orderId}`, JSON.stringify(localRecord));
   } catch (e) {}
 
-  // 2. Set Cloud KV status to 'pending' so cross-device checks track it
-  setCloudApproval(orderId, params.userEmail, 'pending').catch(() => {});
+  // 2. Save FULL ORDER to Cloud KV Store + Update Global Order Index
+  try {
+    const encodedOrder = serializeOrder(orderPayload);
+    await Promise.allSettled([
+      // Store full order payload in Cloud KV
+      setCloudValue(`${CLOUD_ORDER_PREFIX}${orderId}`, encodedOrder),
+      // Store order status
+      setCloudValue(`${CLOUD_STAT_PREFIX}${orderId}`, 'pending'),
+      // Store user status
+      setCloudValue(`${CLOUD_USER_PREFIX}${getSafeEmailKey(params.userEmail)}`, 'pending'),
+    ]);
+
+    // Update global order IDs list
+    const currentIndex = (await getCloudValue(CLOUD_INDEX_KEY)) || '';
+    const ids = currentIndex ? currentIndex.split(',').filter(Boolean) : [];
+    if (!ids.includes(orderId)) {
+      ids.unshift(orderId);
+    }
+    const newIndex = ids.slice(0, 35).join(',');
+    await setCloudValue(CLOUD_INDEX_KEY, newIndex);
+  } catch (err) {
+    console.warn('Cloud KV order push error:', err);
+  }
 
   // 3. Broadcast across tabs in real-time
   try {
@@ -315,8 +459,20 @@ export async function submitPaymentTransferRequest(params: {
     bc.close();
   } catch (e) {}
 
-  // 4. Send Notification Email to hanyfady034@gmail.com
-  // Channel A: FormSubmit
+  // 4. Instant Push Notification via ntfy.sh (Cross-device, instant sound/banner on Admin's phone/PC)
+  try {
+    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+      method: 'POST',
+      headers: {
+        'Title': 'New Payment Order (200 EGP)',
+        'Priority': 'urgent',
+        'Tags': 'moneybag,bell,zap',
+      },
+      body: `طلب تفعيل جديد بقيمة 200 ج.م\nالعميل: ${params.userName || params.userEmail}\nالموبايل: ${params.senderPhone}\nطريقة الدفع: ${methodLabel}\nرقم الطلب: ${orderId}\nلوحة الإدارة: ${adminDashboardUrl}`,
+    }).catch(() => {});
+  } catch (e) {}
+
+  // 5. Channel A: FormSubmit Notification Email
   try {
     fetch(`https://formsubmit.co/ajax/${ADMIN_CONFIG.adminEmail}`, {
       method: 'POST',
@@ -340,7 +496,7 @@ export async function submitPaymentTransferRequest(params: {
     }).catch(() => {});
   } catch (e) {}
 
-  // Channel B: EmailJS
+  // 6. Channel B: EmailJS Notification Email
   try {
     const emailBody = `
 إشعار طلب تفعيل صانع الإعلانات - MarkNCode
@@ -375,7 +531,9 @@ ${adminDashboardUrl}
         },
         ADMIN_CONFIG.emailJsPublicKey
       )
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('EmailJS delivery warning:', err);
+      });
   } catch (e) {}
 
   return localRecord;
@@ -522,11 +680,12 @@ export async function approvePaymentOrder(orderId: string, userEmail?: string): 
     const target = all.find((o) => o.orderId === orderId);
     const email = userEmail || target?.userEmail;
     const normEmail = email ? email.trim().toLowerCase() : '';
+    const now = new Date().toISOString();
 
     // 1. Update in local registry
     if (target) {
       target.status = 'approved';
-      target.approvedAt = new Date().toISOString();
+      target.approvedAt = now;
       localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(all));
     }
 
@@ -539,15 +698,33 @@ export async function approvePaymentOrder(orderId: string, userEmail?: string): 
       if (activeRaw) {
         const parsed = JSON.parse(activeRaw) as PaymentOrder;
         parsed.data.status = 'approved';
-        parsed.data.approvedAt = new Date().toISOString();
+        parsed.data.approvedAt = now;
         localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`, JSON.stringify(parsed));
       }
       // Update CRM
       toggleUserAdAccess(normEmail, true);
     }
 
-    // 3. Update Cloud KV Store so the client's device/phone unlocks immediately
-    await setCloudApproval(orderId, normEmail, 'approved');
+    // 3. Update Cloud KV Store for cross-device unlock
+    const cloudPromises: Promise<boolean>[] = [
+      setCloudValue(`${CLOUD_STAT_PREFIX}${orderId}`, 'approved'),
+    ];
+    if (normEmail) {
+      cloudPromises.push(setCloudValue(`${CLOUD_USER_PREFIX}${getSafeEmailKey(normEmail)}`, 'approved'));
+    }
+
+    // Update order object in cloud if present
+    const rawVal = await getCloudValue(`${CLOUD_ORDER_PREFIX}${orderId}`);
+    if (rawVal) {
+      const parsed = deserializeOrder(rawVal);
+      if (parsed) {
+        parsed.status = 'approved';
+        parsed.approvedAt = now;
+        cloudPromises.push(setCloudValue(`${CLOUD_ORDER_PREFIX}${orderId}`, serializeOrder(parsed)));
+      }
+    }
+
+    await Promise.allSettled(cloudPromises);
 
     // 4. Broadcast in real time to all open client tabs
     try {
@@ -592,7 +769,22 @@ export async function rejectPaymentOrder(orderId: string, userEmail?: string): P
     }
 
     // Update Cloud KV Store
-    await setCloudApproval(orderId, normEmail, 'rejected');
+    const cloudPromises: Promise<boolean>[] = [
+      setCloudValue(`${CLOUD_STAT_PREFIX}${orderId}`, 'rejected'),
+    ];
+    if (normEmail) {
+      cloudPromises.push(setCloudValue(`${CLOUD_USER_PREFIX}${getSafeEmailKey(normEmail)}`, 'rejected'));
+    }
+    const rawVal = await getCloudValue(`${CLOUD_ORDER_PREFIX}${orderId}`);
+    if (rawVal) {
+      const parsed = deserializeOrder(rawVal);
+      if (parsed) {
+        parsed.status = 'rejected';
+        cloudPromises.push(setCloudValue(`${CLOUD_ORDER_PREFIX}${orderId}`, serializeOrder(parsed)));
+      }
+    }
+
+    await Promise.allSettled(cloudPromises);
 
     try {
       const bc = new BroadcastChannel('mnc_payment_sync');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
   Container,
@@ -28,6 +28,7 @@ import {
   Switch,
   FormControlLabel,
   InputAdornment,
+  CircularProgress,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -53,6 +54,8 @@ import {
   Launch as LaunchIcon,
   ExitToApp as LogoutIcon,
   Google as GoogleIcon,
+  Notifications as NotificationsIcon,
+  CloudSync as CloudSyncIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -149,22 +152,54 @@ const AdminPayments: React.FC = () => {
   // Inquiries Filter
   const [inquiryFilter, setInquiryFilter] = useState<'all' | 'new' | 'contacted' | 'booked'>('all');
 
-  // Notifications
+  // Notifications & Cloud Sync State
   const [snackbarMsg, setSnackbarMsg] = useState<string>('');
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [isRefreshingCloud, setIsRefreshingCloud] = useState<boolean>(false);
+  const prevPendingCountRef = useRef<number>(0);
+
+  // Play audio chime when a new pending order arrives
+  const playAlertChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch (e) {}
+  };
 
   // Load and refresh all system data from cache and cloud
-  const refreshAllData = () => {
+  const refreshAllData = async (manual?: boolean | React.SyntheticEvent) => {
+    const isManual = manual === true;
+    if (isManual) setIsRefreshingCloud(true);
     try {
+      // 1. Instant local render
       const localOrders = getAllPaymentOrders();
       setOrders(Array.isArray(localOrders) ? localOrders : []);
-      syncOrdersFromCloud()
-        .then((cloudList) => {
-          if (Array.isArray(cloudList)) {
-            setOrders(cloudList);
-          }
-        })
-        .catch(() => {});
+
+      // 2. Fetch all orders across all devices from Cloud KV
+      const cloudList = await syncOrdersFromCloud();
+      if (Array.isArray(cloudList)) {
+        setOrders(cloudList);
+        const currentPending = cloudList.filter((o) => o && o.status === 'pending').length;
+        if (prevPendingCountRef.current > 0 && currentPending > prevPendingCountRef.current) {
+          playAlertChime();
+          setSnackbarMsg('🚨 وصل طلب تحويل جديد من عميل الآن!');
+          setSnackbarOpen(true);
+        }
+        prevPendingCountRef.current = currentPending;
+      }
+
       const users = getAllManagedUsers();
       setUsersList(Array.isArray(users) ? users : []);
       const inqs = getAllInquiries();
@@ -173,8 +208,15 @@ const AdminPayments: React.FC = () => {
       setCampaignLogs(Array.isArray(camps) ? camps : []);
       const currentSettings = getSiteSettings();
       setSiteSettings(currentSettings);
+
+      if (isManual) {
+        setSnackbarMsg('✅ تمت مزامنة السحابة بنجاح وتحديث كافة الطلبات!');
+        setSnackbarOpen(true);
+      }
     } catch (e) {
       console.error('Error refreshing admin data:', e);
+    } finally {
+      if (isManual) setIsRefreshingCloud(false);
     }
   };
 
@@ -197,8 +239,8 @@ const AdminPayments: React.FC = () => {
     const handleStorage = () => refreshAllData();
     window.addEventListener('storage', handleStorage);
 
-    // Auto-refresh interval every 3 seconds
-    const interval = setInterval(refreshAllData, 3000);
+    // Auto-refresh interval every 3 seconds for real-time order tracking
+    const interval = setInterval(() => refreshAllData(false), 3000);
 
     return () => {
       clearInterval(interval);
@@ -701,6 +743,43 @@ const AdminPayments: React.FC = () => {
                 }}
               >
                 الموقع الحي
+              </Button>
+
+              <Button
+                variant="contained"
+                onClick={() => refreshAllData(true)}
+                disabled={isRefreshingCloud}
+                startIcon={
+                  isRefreshingCloud ? (
+                    <CircularProgress size={18} sx={{ color: 'white' }} />
+                  ) : (
+                    <CloudSyncIcon />
+                  )
+                }
+                sx={{
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+                  fontWeight: 800,
+                  boxShadow: '0 4px 15px rgba(37, 99, 235, 0.4)',
+                }}
+              >
+                {isRefreshingCloud ? 'جاري المزامنة...' : 'مزامنة السحابة 🔄'}
+              </Button>
+
+              <Button
+                variant="outlined"
+                onClick={() => window.open('https://ntfy.sh/mnc_admin_orders_2026', '_blank')}
+                startIcon={<NotificationsIcon sx={{ color: '#fbbf24' }} />}
+                sx={{
+                  borderRadius: '12px',
+                  borderColor: 'rgba(251, 191, 36, 0.5)',
+                  color: '#fbbf24',
+                  fontWeight: 800,
+                  bgcolor: 'rgba(251, 191, 36, 0.1)',
+                  '&:hover': { borderColor: '#fbbf24', bgcolor: 'rgba(251, 191, 36, 0.2)' },
+                }}
+              >
+                إشعارات الموبايل 🔔
               </Button>
 
               <Button
@@ -1255,6 +1334,97 @@ const AdminPayments: React.FC = () => {
         {/* ============================================================== */}
         {activeTab === 1 && (
           <Stack spacing={3}>
+            {/* Live Cloud Sync & Notification Banner */}
+            <Card
+              sx={{
+                p: 2.2,
+                borderRadius: '20px',
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.4) 100%)',
+                border: '1.5px solid rgba(56, 189, 248, 0.4)',
+                boxShadow: '0 8px 25px rgba(0, 0, 0, 0.4)',
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                alignItems: { xs: 'flex-start', md: 'center' },
+                justifyContent: 'space-between',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '12px',
+                    bgcolor: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <CloudSyncIcon sx={{ color: '#38bdf8', fontSize: 26 }} />
+                </Box>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 900, color: '#ffffff', fontSize: '0.95rem' }}>
+                      المزامنة السحابية المباشرة (Cross-Device Cloud Sync) 🌐
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label="نشطة وتعمل تلقائياً 🟢"
+                      sx={{ bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontWeight: 800, height: 22 }}
+                    />
+                  </Box>
+                  <Typography variant="caption" sx={{ color: '#cbd5e1', fontSize: '0.82rem' }}>
+                    أي طلب يقدمه أي عميل من هاتفه أو كمبيوتره يصل مباشرة إلى لوحتك ويتم تحديثه كل 3 ثوانٍ
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Stack direction="row" spacing={1.5} sx={{ width: { xs: '100%', md: 'auto' } }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => refreshAllData(true)}
+                  disabled={isRefreshingCloud}
+                  startIcon={
+                    isRefreshingCloud ? (
+                      <CircularProgress size={16} sx={{ color: 'white' }} />
+                    ) : (
+                      <RefreshIcon />
+                    )
+                  }
+                  sx={{
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    flex: { xs: 1, md: 'initial' },
+                  }}
+                >
+                  {isRefreshingCloud ? 'جاري الفحص...' : 'تحديث السحابة فوراً 🔄'}
+                </Button>
+
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => window.open('https://ntfy.sh/mnc_admin_orders_2026', '_blank')}
+                  startIcon={<NotificationsIcon sx={{ color: '#fbbf24' }} />}
+                  sx={{
+                    borderRadius: '10px',
+                    borderColor: 'rgba(251, 191, 36, 0.4)',
+                    color: '#fbbf24',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    flex: { xs: 1, md: 'initial' },
+                    '&:hover': { borderColor: '#fbbf24', bgcolor: 'rgba(251, 191, 36, 0.1)' },
+                  }}
+                >
+                  إشعارات الموبايل 📲
+                </Button>
+              </Stack>
+            </Card>
+
             {/* Filter and Search Bar */}
             <Card
               sx={{

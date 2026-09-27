@@ -464,8 +464,8 @@ const CreateYourAd: React.FC = () => {
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
 
-    // Polling interval (8 seconds)
-    const interval = setInterval(checkStatusNow, 8000);
+    // Polling interval (3 seconds for ultra fast response)
+    const interval = setInterval(checkStatusNow, 3000);
 
     return () => {
       clearInterval(interval);
@@ -501,8 +501,20 @@ const CreateYourAd: React.FC = () => {
       setActivePaymentOrder(newOrder);
       setPaymentStatus('pending');
       setIsSubmittingPayment(false);
-      setSnackbarMessage('تم إرسال إشعار الدفع إلى الإدارة بنجاح! جاري مراجعة التحويل وتفعيل الحساب...');
+      setSnackbarMessage('✅ تم تسجيل طلب التحويل بنجاح! جاري إرسال الإشعار للإدارة وفتح واتساب...');
       setCopiedSnackbar(true);
+
+      // Also trigger WhatsApp directly so the client sends the receipt to admin instantly
+      try {
+        const waUrl = buildWhatsAppNotificationUrl(
+          newOrder.data.orderId,
+          user.email,
+          user.name || user.email,
+          senderPhoneInput.trim(),
+          paymentMethod
+        );
+        window.open(waUrl, '_blank');
+      } catch (e) {}
     } catch (err: any) {
       setIsSubmittingPayment(false);
       setPaymentError(err.message || 'حدث خطأ أثناء تسجيل الدفع، يرجى المحاولة ثانية.');
