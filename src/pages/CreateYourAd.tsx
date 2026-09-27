@@ -4274,8 +4274,13 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                           <Chip
                             size="small"
-                            label={auditResult.isLiveGemini ? 'MarkNCode AI Pro ⚡' : 'MarkNCode AI Engine 🤖'}
-                            sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}
+                            label={auditResult.isLiveGemini ? 'MarkNCode AI Pro ⚡ (Gemini AI Live)' : 'MarkNCode AI Engine 🤖'}
+                            sx={{
+                              bgcolor: auditResult.isLiveGemini ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)',
+                              color: auditResult.isLiveGemini ? '#34d399' : '#38bdf8',
+                              fontWeight: 800,
+                              border: auditResult.isLiveGemini ? '1px solid rgba(52, 211, 153, 0.4)' : 'none',
+                            }}
                           />
                           <Chip
                             size="small"
