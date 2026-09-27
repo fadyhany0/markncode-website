@@ -238,28 +238,34 @@ const AdminPayments: React.FC = () => {
   };
 
   // Payment Actions
-  const handleApproveOrder = (order: PaymentOrderData) => {
-    const ok = approvePaymentOrder(order.orderId, order.userEmail);
+  const handleApproveOrder = async (order: PaymentOrderData) => {
+    const ok = await approvePaymentOrder(order.orderId, order.userEmail);
     if (ok) {
+      saveManagedUser({
+        email: order.userEmail,
+        name: order.userName || order.userEmail,
+        hasAdToolAccess: true,
+      });
       refreshAllData();
-      showToast(`✅ تم اعتماد وتفعيل الحساب للعميل (${order.userName || order.userEmail}) بنجاح!`);
+      showToast(`✅ تم اعتماد وتفعيل الحساب للعميل (${order.userName || order.userEmail}) بنجاح وفك القفل فوراً!`);
     }
   };
 
-  const handleRejectOrder = (order: PaymentOrderData) => {
-    const ok = rejectPaymentOrder(order.orderId, order.userEmail);
+  const handleRejectOrder = async (order: PaymentOrderData) => {
+    const ok = await rejectPaymentOrder(order.orderId, order.userEmail);
     if (ok) {
+      toggleUserAdAccess(order.userEmail, false);
       refreshAllData();
       showToast(`❌ تم رفض طلب التحويل رقم ${order.orderId}`);
     }
   };
 
-  const handleQuickActivate = () => {
+  const handleQuickActivate = async () => {
     if (!quickEmailInput.trim() || !quickEmailInput.includes('@')) {
       alert('يرجى كتابة بريد إلكتروني صحيح للعميل');
       return;
     }
-    const ok = manualActivateUser(quickEmailInput, quickNameInput);
+    const ok = await manualActivateUser(quickEmailInput, quickNameInput);
     if (ok) {
       // Also register in CRM
       saveManagedUser({
@@ -271,7 +277,7 @@ const AdminPayments: React.FC = () => {
       setQuickActivateModalOpen(false);
       setQuickEmailInput('');
       setQuickNameInput('');
-      showToast(`⚡ تم تفعيل أداة الإعلانات للبريد (${quickEmailInput}) فوراً!`);
+      showToast(`⚡ تم تفعيل أداة الإعلانات للبريد (${quickEmailInput}) فوراً وفك القفل!`);
     }
   };
 

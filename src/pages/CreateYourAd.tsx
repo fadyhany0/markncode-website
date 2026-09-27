@@ -61,6 +61,7 @@ import {
   CheckCircle as CheckCircleIcon,
   HourglassEmpty as PendingIcon,
   Cancel as CancelIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -79,6 +80,7 @@ import {
   getLocalPaymentOrder,
   buildWhatsAppNotificationUrl,
 } from '../services/paymentApprovalService';
+import { SOLE_ADMIN_EMAIL, getAllManagedUsers } from '../services/adminSettingsService';
 import {
   generateAdCampaignWithGemini,
   askGeminiFollowUp,
@@ -320,6 +322,7 @@ const CreateYourAd: React.FC = () => {
   const [activePaymentOrder, setActivePaymentOrder] = useState<PaymentOrder | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState<boolean>(false);
   const [paymentError, setPaymentError] = useState<string>('');
+  const [isCheckingApproval, setIsCheckingApproval] = useState<boolean>(false);
 
   // Admin Approval Modal State (when admin opens the link from Gmail / WhatsApp: ?approve_order=...)
   const [adminApprovalModalOpen, setAdminApprovalModalOpen] = useState<boolean>(false);
@@ -351,12 +354,28 @@ const CreateYourAd: React.FC = () => {
       return;
     }
 
+    // Admin has permanent full access
+    if (user.email.toLowerCase() === SOLE_ADMIN_EMAIL.toLowerCase()) {
+      setPaymentStatus('approved');
+      return;
+    }
+
     // Restore saved plan if available so client never loses their generated plan
     try {
       const savedPlan = localStorage.getItem(`mnc_saved_plan_${user.email}`);
       if (savedPlan) {
         const parsed = JSON.parse(savedPlan);
         setAuditResult(parsed);
+      }
+    } catch (e) {}
+
+    // Check CRM Managed Users: if admin granted access in CRM, activate immediately
+    try {
+      const managedList = getAllManagedUsers();
+      const matched = managedList.find((u) => u.email.toLowerCase() === user.email.toLowerCase());
+      if (matched && matched.hasAdToolAccess) {
+        setPaymentStatus('approved');
+        return;
       }
     } catch (e) {}
 
@@ -370,7 +389,7 @@ const CreateYourAd: React.FC = () => {
         }
       });
     } else {
-      // Also check if admin manually activated this user email
+      // Also check if admin approved this user email in cloud or locally
       checkPaymentStatus(undefined, user.email).then((serverData) => {
         if (serverData && serverData.status === 'approved') {
           setPaymentStatus('approved');
@@ -382,6 +401,26 @@ const CreateYourAd: React.FC = () => {
   // 3. Client polling & real-time sync while paymentStatus === 'pending'
   useEffect(() => {
     if (!user || paymentStatus !== 'pending') return;
+
+    // Fast check function
+    const checkStatusNow = async () => {
+      const serverData = await checkPaymentStatus(activePaymentOrder?.data?.orderId, user.email);
+      if (serverData) {
+        if (serverData.status === 'approved') {
+          setPaymentStatus('approved');
+          if (activePaymentOrder) {
+            setActivePaymentOrder({ cloudId: activePaymentOrder.cloudId, data: serverData });
+          }
+          setSnackbarMessage('🎉 تم تأكيد استلام الـ 200 ج.م وتفعيل الحساب من لوحة الإدارة بنجاح!');
+          setCopiedSnackbar(true);
+        } else if (serverData.status === 'rejected') {
+          setPaymentStatus('rejected');
+          if (activePaymentOrder) {
+            setActivePaymentOrder({ cloudId: activePaymentOrder.cloudId, data: serverData });
+          }
+        }
+      }
+    };
 
     // Cross-tab Instant Sync
     let bc: BroadcastChannel | null = null;
@@ -404,7 +443,7 @@ const CreateYourAd: React.FC = () => {
       const orderId = activePaymentOrder?.data?.orderId;
       if (
         (orderId && e.key === `mnc_approved_${orderId}` && e.newValue === 'true') ||
-        (e.key === `mnc_approved_user_${user.email}` && e.newValue === 'true')
+        (e.key === `mnc_approved_user_${user.email.toLowerCase()}` && e.newValue === 'true')
       ) {
         setPaymentStatus('approved');
         setSnackbarMessage('🎉 تم تفعيل الحساب من لوحة الإدارة بنجاح!');
@@ -413,29 +452,26 @@ const CreateYourAd: React.FC = () => {
     };
     window.addEventListener('storage', handleStorage);
 
-    // Polling central status
-    const interval = setInterval(async () => {
-      const serverData = await checkPaymentStatus(activePaymentOrder?.data?.orderId, user.email);
-      if (serverData) {
-        if (serverData.status === 'approved') {
-          setPaymentStatus('approved');
-          if (activePaymentOrder) {
-            setActivePaymentOrder({ cloudId: activePaymentOrder.cloudId, data: serverData });
-          }
-          setSnackbarMessage('🎉 تم تأكيد استلام الـ 200 ج.م من الإدارة بنجاح! تم فتح صانع الإعلانات لاستخدامك لمرة واحدة.');
-          setCopiedSnackbar(true);
-        } else if (serverData.status === 'rejected') {
-          setPaymentStatus('rejected');
-          if (activePaymentOrder) {
-            setActivePaymentOrder({ cloudId: activePaymentOrder.cloudId, data: serverData });
-          }
-        }
+    // Auto-check when returning to the tab (e.g., after chatting on WhatsApp)
+    const onFocus = () => {
+      checkStatusNow();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkStatusNow();
       }
-    }, 2500);
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // Polling interval (8 seconds)
+    const interval = setInterval(checkStatusNow, 8000);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
       if (bc) bc.close();
     };
   }, [user, paymentStatus, activePaymentOrder]);
@@ -2022,8 +2058,63 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
               spacing={2}
               justifyContent="center"
               alignItems="center"
-              sx={{ maxWidth: 580, mx: 'auto', width: '100%' }}
+              sx={{ maxWidth: 720, mx: 'auto', width: '100%', flexWrap: 'wrap' }}
             >
+              {/* Primary: Check Approval Now Button */}
+              <Button
+                variant="contained"
+                disabled={isCheckingApproval}
+                onClick={async () => {
+                  setIsCheckingApproval(true);
+                  try {
+                    const serverData = await checkPaymentStatus(activePaymentOrder?.data?.orderId, user.email);
+                    if (serverData?.status === 'approved') {
+                      setPaymentStatus('approved');
+                      if (activePaymentOrder) {
+                        setActivePaymentOrder({ cloudId: activePaymentOrder.cloudId, data: serverData });
+                      }
+                      setSnackbarMessage('🎉 تم تأكيد استلام الـ 200 ج.م وتفعيل صانع الإعلانات بنجاح!');
+                      setCopiedSnackbar(true);
+                    } else if (serverData?.status === 'rejected') {
+                      setPaymentStatus('rejected');
+                      setSnackbarMessage('❌ تم رفض طلب التحويل من قبل الإدارة.');
+                      setCopiedSnackbar(true);
+                    } else {
+                      setSnackbarMessage('⏳ طلبك لا يزال قيد المراجعة لدى الإدارة، سيتم التفعيل فور تأكيد التحويل.');
+                      setCopiedSnackbar(true);
+                    }
+                  } catch (e) {
+                    setSnackbarMessage('حدث خطأ أثناء فحص الحالة، يرجى المحاولة بعد قليل.');
+                    setCopiedSnackbar(true);
+                  } finally {
+                    setIsCheckingApproval(false);
+                  }
+                }}
+                startIcon={
+                  isCheckingApproval ? (
+                    <CircularProgress size={20} sx={{ color: 'white' }} />
+                  ) : (
+                    <RefreshIcon sx={{ fontSize: 24 }} />
+                  )
+                }
+                sx={{
+                  py: 1.6,
+                  px: 3.5,
+                  minHeight: 52,
+                  borderRadius: '16px',
+                  fontWeight: 900,
+                  fontSize: '1.05rem',
+                  background: 'linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)',
+                  boxShadow: '0 8px 25px rgba(37, 99, 235, 0.45)',
+                  width: { xs: '100%', sm: 'auto' },
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)',
+                  },
+                }}
+              >
+                {isCheckingApproval ? 'جاري التحقق...' : 'التحقق من تفعيل الإدارة الآن 🔄'}
+              </Button>
+
               {activePaymentOrder && (
                 <Button
                   variant="contained"
@@ -2040,11 +2131,11 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                   startIcon={<WhatsAppIcon sx={{ fontSize: 24 }} />}
                   sx={{
                     py: 1.6,
-                    px: 3.5,
+                    px: 3,
                     minHeight: 52,
                     borderRadius: '16px',
                     fontWeight: 900,
-                    fontSize: '1.05rem',
+                    fontSize: '1rem',
                     background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     boxShadow: '0 8px 25px rgba(16, 185, 129, 0.45)',
                     width: { xs: '100%', sm: 'auto' },
@@ -2062,11 +2153,11 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                 onClick={() => setPaymentStatus('none')}
                 sx={{
                   py: 1.6,
-                  px: 3,
+                  px: 2.5,
                   minHeight: 52,
                   borderRadius: '16px',
                   fontWeight: 800,
-                  fontSize: '0.98rem',
+                  fontSize: '0.95rem',
                   color: '#f1f5f9',
                   borderColor: 'rgba(255,255,255,0.3)',
                   bgcolor: 'rgba(255,255,255,0.05)',
@@ -2078,7 +2169,7 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                   },
                 }}
               >
-                تعديل الرقم أو طريقة الدفع 🔄
+                تعديل الرقم أو طريقة الدفع ✏️
               </Button>
             </Stack>
           </Card>

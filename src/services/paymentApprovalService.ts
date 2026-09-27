@@ -1,7 +1,8 @@
 // Payment & Single-Use Authorization Service for MarkNCode AI Ad Studio
 // Enables 200 EGP per-use access via Vodafone Cash & InstaPay with in-website Admin Dashboard approval
+// Backed by high-speed, cross-device Cloud KV Store (keyvalue.immanuel.co) + Local Registry + BroadcastChannel
 import emailjs from '@emailjs/browser';
-import { getSiteSettings } from './adminSettingsService';
+import { getSiteSettings, getAllManagedUsers, toggleUserAdAccess } from './adminSettingsService';
 
 export type PaymentMethod = 'vodafone_cash' | 'instapay';
 export type PaymentStatus = 'none' | 'pending' | 'approved' | 'rejected' | 'used';
@@ -48,7 +49,98 @@ export const ADMIN_CONFIG = {
 
 const STORAGE_KEY_ALL_ORDERS = 'mnc_all_orders_registry';
 const STORAGE_KEY_USER_PREFIX = 'mnc_pay_active_';
-const CLOUD_SYNC_ENDPOINT = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0df95f9102042';
+
+// Cloud KV Store configuration for ultra-reliable cross-device synchronization
+const CLOUD_KV_BASE = 'https://keyvalue.immanuel.co/api/KeyVal';
+const CLOUD_KV_APP_KEY = 'hr4hcm6c';
+
+/**
+ * Normalizes email to a URL-safe key (alphanumeric and underscores only)
+ */
+export function getSafeEmailKey(email: string): string {
+  return email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+}
+
+/**
+ * Reads a single value from the Cloud KV store
+ */
+export async function getCloudValue(key: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/${key}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const clean = text.replace(/"/g, '').trim();
+    return clean && clean !== 'null' ? clean : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes a single value to the Cloud KV store
+ */
+export async function setCloudValue(key: string, value: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/${key}/${encodeURIComponent(value)}`,
+      {
+        method: 'POST',
+      }
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sets cloud approval status for order and/or user
+ */
+export async function setCloudApproval(
+  orderId: string | undefined,
+  userEmail: string | undefined,
+  status: PaymentStatus
+): Promise<boolean> {
+  const promises: Promise<boolean>[] = [];
+  if (orderId) {
+    promises.push(setCloudValue(`ord_${orderId}`, status));
+  }
+  if (userEmail) {
+    promises.push(setCloudValue(`usr_${getSafeEmailKey(userEmail)}`, status));
+  }
+  const results = await Promise.all(promises);
+  return results.some(Boolean);
+}
+
+/**
+ * Reads cloud approval status for order or user
+ */
+export async function getCloudApproval(
+  orderId?: string,
+  userEmail?: string
+): Promise<PaymentStatus | null> {
+  try {
+    // 1. Check user key first (cross-device user access)
+    if (userEmail) {
+      const userVal = await getCloudValue(`usr_${getSafeEmailKey(userEmail)}`);
+      if (userVal === 'approved' || userVal === 'rejected' || userVal === 'pending' || userVal === 'used') {
+        return userVal as PaymentStatus;
+      }
+    }
+    // 2. Check order key
+    if (orderId) {
+      const ordVal = await getCloudValue(`ord_${orderId}`);
+      if (ordVal === 'approved' || ordVal === 'rejected' || ordVal === 'pending' || ordVal === 'used') {
+        return ordVal as PaymentStatus;
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading cloud approval:', e);
+  }
+  return null;
+}
 
 /**
  * Returns all payment orders from local cache sorted newest first
@@ -83,44 +175,40 @@ export function getAllPaymentOrders(): PaymentOrderData[] {
  */
 export async function syncOrdersFromCloud(): Promise<PaymentOrderData[]> {
   try {
-    const res = await fetch(CLOUD_SYNC_ENDPOINT, { cache: 'no-store' });
-    if (!res.ok) return getAllPaymentOrders();
-    const json = await res.json();
-    const cloudOrders = json?.data?.orders;
-    if (Array.isArray(cloudOrders)) {
-      const local = getAllPaymentOrders();
-      const map = new Map<string, PaymentOrderData>();
-      local.forEach((o) => {
-        if (o && o.orderId) map.set(o.orderId, o);
-      });
-      cloudOrders.forEach((o: any) => {
-        if (!o || !o.orderId) return;
-        const sanitized: PaymentOrderData = {
-          ...o,
-          orderId: String(o.orderId),
-          senderPhone: o.senderPhone ? String(o.senderPhone) : '',
-          userName: o.userName ? String(o.userName) : 'غير مسجل اسم',
-          userEmail: o.userEmail ? String(o.userEmail) : '',
-          amount: Number(o.amount) || ADMIN_CONFIG.amountEGP || 200,
-          status: o.status || 'pending',
-          paymentMethod: o.paymentMethod || 'vodafone_cash',
-          createdAt: o.createdAt || new Date().toISOString(),
-        };
-        const existing = map.get(sanitized.orderId);
-        if (!existing || new Date(sanitized.createdAt).getTime() >= new Date(existing.createdAt || 0).getTime()) {
-          map.set(sanitized.orderId, sanitized);
+    const local = getAllPaymentOrders();
+    let updated = false;
+
+    // Check each pending order against Cloud KV to sync status if admin approved elsewhere
+    await Promise.all(
+      local.map(async (order) => {
+        if (order.status === 'pending') {
+          const cloudStatus = await getCloudApproval(order.orderId, order.userEmail);
+          if (cloudStatus && cloudStatus !== 'pending') {
+            order.status = cloudStatus;
+            if (cloudStatus === 'approved') {
+              order.approvedAt = order.approvedAt || new Date().toISOString();
+              localStorage.setItem(`mnc_approved_${order.orderId}`, 'true');
+              if (order.userEmail) {
+                localStorage.setItem(`mnc_approved_user_${order.userEmail.toLowerCase()}`, 'true');
+              }
+            } else if (cloudStatus === 'rejected') {
+              localStorage.setItem(`mnc_rejected_${order.orderId}`, 'true');
+            }
+            updated = true;
+          }
         }
-      });
-      const merged = Array.from(map.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(merged));
-      return merged;
+      })
+    );
+
+    if (updated) {
+      localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(local));
     }
+
+    return local;
   } catch (e) {
     console.warn('Cloud sync error, using local orders:', e);
+    return getAllPaymentOrders();
   }
-  return getAllPaymentOrders();
 }
 
 /**
@@ -128,15 +216,15 @@ export async function syncOrdersFromCloud(): Promise<PaymentOrderData[]> {
  */
 export async function pushOrdersToCloud(orders: PaymentOrderData[]): Promise<boolean> {
   try {
-    const res = await fetch(CLOUD_SYNC_ENDPOINT, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'markncode_orders',
-        data: { orders },
-      }),
-    });
-    return res.ok;
+    // Sync statuses of approved/rejected orders to Cloud KV
+    await Promise.all(
+      orders.map(async (o) => {
+        if (o.status === 'approved' || o.status === 'rejected') {
+          await setCloudApproval(o.orderId, o.userEmail, o.status);
+        }
+      })
+    );
+    return true;
   } catch (e) {
     console.warn('Cloud push error:', e);
     return false;
@@ -213,17 +301,12 @@ export async function submitPaymentTransferRequest(params: {
   };
 
   try {
-    localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${params.userEmail}`, JSON.stringify(localRecord));
+    localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${params.userEmail.toLowerCase()}`, JSON.stringify(localRecord));
     localStorage.setItem(`mnc_order_${orderId}`, JSON.stringify(localRecord));
   } catch (e) {}
 
-  // 2. Sync to cloud database so the admin page on any device receives it immediately
-  try {
-    const cloudOrders = await syncOrdersFromCloud();
-    const filtered = cloudOrders.filter((o) => o.orderId !== orderId);
-    filtered.unshift(orderPayload);
-    await pushOrdersToCloud(filtered);
-  } catch (e) {}
+  // 2. Set Cloud KV status to 'pending' so cross-device checks track it
+  setCloudApproval(orderId, params.userEmail, 'pending').catch(() => {});
 
   // 3. Broadcast across tabs in real-time
   try {
@@ -232,7 +315,7 @@ export async function submitPaymentTransferRequest(params: {
     bc.close();
   } catch (e) {}
 
-  // 3. Send Notification Email to hanyfady034@gmail.com
+  // 4. Send Notification Email to hanyfady034@gmail.com
   // Channel A: FormSubmit
   try {
     fetch(`https://formsubmit.co/ajax/${ADMIN_CONFIG.adminEmail}`, {
@@ -299,9 +382,11 @@ ${adminDashboardUrl}
 }
 
 /**
- * Checks the status of a payment order for the client
+ * Checks the status of a payment order for the client across Local Storage, CRM Managed Users, and Cloud KV
  */
 export async function checkPaymentStatus(orderId?: string, userEmail?: string): Promise<PaymentOrderData | null> {
+  const normEmail = userEmail ? userEmail.trim().toLowerCase() : '';
+
   // 1. Direct approval flags in local storage (fast path)
   if (orderId) {
     const approvedFlag = localStorage.getItem(`mnc_approved_${orderId}`);
@@ -313,7 +398,7 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
       }
       return {
         orderId,
-        userEmail: userEmail || '',
+        userEmail: normEmail,
         userName: '',
         amount: 200,
         paymentMethod: 'vodafone_cash',
@@ -326,7 +411,7 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
     if (rejectedFlag === 'true') {
       return {
         orderId,
-        userEmail: userEmail || '',
+        userEmail: normEmail,
         userName: '',
         amount: 200,
         paymentMethod: 'vodafone_cash',
@@ -338,12 +423,12 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
   }
 
   // 2. Check user-level approved flag in local storage
-  if (userEmail) {
-    const userApprovedFlag = localStorage.getItem(`mnc_approved_user_${userEmail}`);
+  if (normEmail) {
+    const userApprovedFlag = localStorage.getItem(`mnc_approved_user_${normEmail}`);
     if (userApprovedFlag === 'true') {
       return {
         orderId: orderId || 'MANUAL-OK',
-        userEmail,
+        userEmail: normEmail,
         userName: '',
         amount: 200,
         paymentMethod: 'vodafone_cash',
@@ -352,24 +437,60 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
         createdAt: new Date().toISOString(),
       };
     }
+
+    // 2.b Check CRM Managed Users: if user was granted access in CRM, activate immediately
+    try {
+      const managedList = getAllManagedUsers();
+      const matched = managedList.find((u) => u.email.toLowerCase() === normEmail);
+      if (matched && matched.hasAdToolAccess) {
+        localStorage.setItem(`mnc_approved_user_${normEmail}`, 'true');
+        if (orderId) localStorage.setItem(`mnc_approved_${orderId}`, 'true');
+        return {
+          orderId: orderId || 'CRM-OK',
+          userEmail: normEmail,
+          userName: matched.name || normEmail,
+          amount: 200,
+          paymentMethod: 'vodafone_cash',
+          senderPhone: matched.phone || '',
+          status: 'approved',
+          createdAt: new Date().toISOString(),
+        };
+      }
+    } catch (e) {}
   }
 
-  // 3. Query cloud database so client detects when admin approves from another device!
+  // 3. Query Cloud KV Store (cross-device instant sync!)
+  // If the admin approved from their mobile phone or any other computer, this instantly catches it!
   try {
-    const cloudOrders = await syncOrdersFromCloud();
-    const found = cloudOrders.find(
-      (o) =>
-        (orderId && o.orderId === orderId) ||
-        (userEmail && o.userEmail.toLowerCase() === userEmail.toLowerCase())
-    );
-    if (found) {
-      if (found.status === 'approved') {
-        if (orderId) localStorage.setItem(`mnc_approved_${orderId}`, 'true');
-        if (userEmail) localStorage.setItem(`mnc_approved_user_${userEmail}`, 'true');
-      } else if (found.status === 'rejected') {
-        if (orderId) localStorage.setItem(`mnc_rejected_${orderId}`, 'true');
+    const cloudStatus = await getCloudApproval(orderId, normEmail);
+    if (cloudStatus === 'approved') {
+      if (orderId) localStorage.setItem(`mnc_approved_${orderId}`, 'true');
+      if (normEmail) {
+        localStorage.setItem(`mnc_approved_user_${normEmail}`, 'true');
+        toggleUserAdAccess(normEmail, true);
       }
-      return found;
+      return {
+        orderId: orderId || 'CLOUD-OK',
+        userEmail: normEmail,
+        userName: '',
+        amount: 200,
+        paymentMethod: 'vodafone_cash',
+        senderPhone: '',
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+      };
+    } else if (cloudStatus === 'rejected') {
+      if (orderId) localStorage.setItem(`mnc_rejected_${orderId}`, 'true');
+      return {
+        orderId: orderId || 'CLOUD-REJ',
+        userEmail: normEmail,
+        userName: '',
+        amount: 200,
+        paymentMethod: 'vodafone_cash',
+        senderPhone: '',
+        status: 'rejected',
+        createdAt: new Date().toISOString(),
+      };
     }
   } catch (e) {}
 
@@ -379,8 +500,8 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
     const found = all.find((o) => o.orderId === orderId);
     if (found) return found;
   }
-  if (userEmail) {
-    const foundByUser = all.find((o) => o.userEmail.toLowerCase() === userEmail.toLowerCase());
+  if (normEmail) {
+    const foundByUser = all.find((o) => o.userEmail.toLowerCase() === normEmail);
     if (foundByUser) return foundByUser;
   }
 
@@ -389,52 +510,49 @@ export async function checkPaymentStatus(orderId?: string, userEmail?: string): 
 
 /**
  * Admin approves payment order from the Admin Dashboard
+ * Instantly updates:
+ * 1. Local Storage Registry & User Sessions
+ * 2. CRM Managed Users (hasAdToolAccess = true)
+ * 3. Cloud KV Store (cross-device instant unlock)
+ * 4. BroadcastChannel across all open client tabs
  */
-export function approvePaymentOrder(orderId: string, userEmail?: string): boolean {
+export async function approvePaymentOrder(orderId: string, userEmail?: string): Promise<boolean> {
   try {
     const all = getAllPaymentOrders();
     const target = all.find((o) => o.orderId === orderId);
     const email = userEmail || target?.userEmail;
+    const normEmail = email ? email.trim().toLowerCase() : '';
 
-    // Update in local registry
+    // 1. Update in local registry
     if (target) {
       target.status = 'approved';
       target.approvedAt = new Date().toISOString();
       localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(all));
     }
 
-    // Set fast lookup flags
+    // 2. Set fast lookup flags in local storage
     localStorage.setItem(`mnc_approved_${orderId}`, 'true');
     localStorage.removeItem(`mnc_rejected_${orderId}`);
-    if (email) {
-      localStorage.setItem(`mnc_approved_user_${email}`, 'true');
-      const activeRaw = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${email}`);
+    if (normEmail) {
+      localStorage.setItem(`mnc_approved_user_${normEmail}`, 'true');
+      const activeRaw = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`);
       if (activeRaw) {
         const parsed = JSON.parse(activeRaw) as PaymentOrder;
         parsed.data.status = 'approved';
         parsed.data.approvedAt = new Date().toISOString();
-        localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${email}`, JSON.stringify(parsed));
+        localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`, JSON.stringify(parsed));
       }
+      // Update CRM
+      toggleUserAdAccess(normEmail, true);
     }
 
-    // Push update to cloud database so client's device unlocks immediately
-    syncOrdersFromCloud().then((cloudOrders) => {
-      const cloudTarget = cloudOrders.find(
-        (o) => o.orderId === orderId || (email && o.userEmail.toLowerCase() === email.toLowerCase())
-      );
-      if (cloudTarget) {
-        cloudTarget.status = 'approved';
-        cloudTarget.approvedAt = new Date().toISOString();
-      } else if (target) {
-        cloudOrders.unshift(target);
-      }
-      pushOrdersToCloud(cloudOrders);
-    });
+    // 3. Update Cloud KV Store so the client's device/phone unlocks immediately
+    await setCloudApproval(orderId, normEmail, 'approved');
 
-    // Broadcast in real time to all open client tabs
+    // 4. Broadcast in real time to all open client tabs
     try {
       const bc = new BroadcastChannel('mnc_payment_sync');
-      bc.postMessage({ action: 'APPROVED', orderId, userEmail: email });
+      bc.postMessage({ action: 'APPROVED', orderId, userEmail: normEmail });
       bc.close();
     } catch (e) {}
 
@@ -448,11 +566,12 @@ export function approvePaymentOrder(orderId: string, userEmail?: string): boolea
 /**
  * Admin rejects payment order from the Admin Dashboard
  */
-export function rejectPaymentOrder(orderId: string, userEmail?: string): boolean {
+export async function rejectPaymentOrder(orderId: string, userEmail?: string): Promise<boolean> {
   try {
     const all = getAllPaymentOrders();
     const target = all.find((o) => o.orderId === orderId);
     const email = userEmail || target?.userEmail;
+    const normEmail = email ? email.trim().toLowerCase() : '';
 
     if (target) {
       target.status = 'rejected';
@@ -461,30 +580,23 @@ export function rejectPaymentOrder(orderId: string, userEmail?: string): boolean
 
     localStorage.setItem(`mnc_rejected_${orderId}`, 'true');
     localStorage.removeItem(`mnc_approved_${orderId}`);
-    if (email) {
-      localStorage.removeItem(`mnc_approved_user_${email}`);
-      const activeRaw = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${email}`);
+    if (normEmail) {
+      localStorage.removeItem(`mnc_approved_user_${normEmail}`);
+      const activeRaw = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`);
       if (activeRaw) {
         const parsed = JSON.parse(activeRaw) as PaymentOrder;
         parsed.data.status = 'rejected';
-        localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${email}`, JSON.stringify(parsed));
+        localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`, JSON.stringify(parsed));
       }
+      toggleUserAdAccess(normEmail, false);
     }
 
-    // Push rejection to cloud database
-    syncOrdersFromCloud().then((cloudOrders) => {
-      const cloudTarget = cloudOrders.find(
-        (o) => o.orderId === orderId || (email && o.userEmail.toLowerCase() === email.toLowerCase())
-      );
-      if (cloudTarget) {
-        cloudTarget.status = 'rejected';
-      }
-      pushOrdersToCloud(cloudOrders);
-    });
+    // Update Cloud KV Store
+    await setCloudApproval(orderId, normEmail, 'rejected');
 
     try {
       const bc = new BroadcastChannel('mnc_payment_sync');
-      bc.postMessage({ action: 'REJECTED', orderId, userEmail: email });
+      bc.postMessage({ action: 'REJECTED', orderId, userEmail: normEmail });
       bc.close();
     } catch (e) {}
 
@@ -498,7 +610,7 @@ export function rejectPaymentOrder(orderId: string, userEmail?: string): boolean
 /**
  * Admin manually activates ANY user by email directly
  */
-export function manualActivateUser(userEmail: string, userName?: string): boolean {
+export async function manualActivateUser(userEmail: string, userName?: string): Promise<boolean> {
   try {
     const trimmed = userEmail.trim().toLowerCase();
     const orderId = `MNC-MANUAL-${Date.now().toString().slice(-4)}`;
@@ -518,14 +630,16 @@ export function manualActivateUser(userEmail: string, userName?: string): boolea
     saveOrderToRegistry(manualOrder);
     localStorage.setItem(`mnc_approved_${orderId}`, 'true');
     localStorage.setItem(`mnc_approved_user_${trimmed}`, 'true');
-    localStorage.setItem(`${STORAGE_KEY_USER_PREFIX}${trimmed}`, JSON.stringify({ cloudId: orderId, data: manualOrder }));
+    localStorage.setItem(
+      `${STORAGE_KEY_USER_PREFIX}${trimmed}`,
+      JSON.stringify({ cloudId: orderId, data: manualOrder })
+    );
 
-    // Push to cloud database
-    syncOrdersFromCloud().then((cloudOrders) => {
-      const filtered = cloudOrders.filter((o) => o.userEmail.toLowerCase() !== trimmed);
-      filtered.unshift(manualOrder);
-      pushOrdersToCloud(filtered);
-    });
+    // Update CRM
+    toggleUserAdAccess(trimmed, true);
+
+    // Update Cloud KV Store
+    await setCloudApproval(orderId, trimmed, 'approved');
 
     try {
       const bc = new BroadcastChannel('mnc_payment_sync');
@@ -544,17 +658,23 @@ export function manualActivateUser(userEmail: string, userName?: string): boolea
  */
 export async function consumeSingleUseCredit(cloudId: string, userEmail: string): Promise<void> {
   try {
-    localStorage.removeItem(`mnc_approved_user_${userEmail}`);
+    const normEmail = userEmail.trim().toLowerCase();
+    localStorage.removeItem(`mnc_approved_user_${normEmail}`);
     localStorage.removeItem(`mnc_approved_${cloudId}`);
-    localStorage.removeItem(`${STORAGE_KEY_USER_PREFIX}${userEmail}`);
+    localStorage.removeItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`);
+
+    toggleUserAdAccess(normEmail, false);
 
     const all = getAllPaymentOrders();
-    const found = all.find((o) => o.orderId === cloudId || o.userEmail === userEmail);
+    const found = all.find((o) => o.orderId === cloudId || o.userEmail.toLowerCase() === normEmail);
     if (found) {
       found.status = 'used';
       found.usedAt = new Date().toISOString();
       localStorage.setItem(STORAGE_KEY_ALL_ORDERS, JSON.stringify(all));
     }
+
+    // Set cloud status to 'used'
+    setCloudApproval(cloudId, normEmail, 'used').catch(() => {});
   } catch (e) {}
 }
 
@@ -563,7 +683,8 @@ export async function consumeSingleUseCredit(cloudId: string, userEmail: string)
  */
 export function getLocalPaymentOrder(userEmail: string): PaymentOrder | null {
   try {
-    const item = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${userEmail}`);
+    const normEmail = userEmail.trim().toLowerCase();
+    const item = localStorage.getItem(`${STORAGE_KEY_USER_PREFIX}${normEmail}`);
     if (!item) return null;
     return JSON.parse(item) as PaymentOrder;
   } catch (e) {

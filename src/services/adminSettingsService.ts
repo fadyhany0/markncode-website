@@ -324,6 +324,18 @@ export function saveManagedUser(user: Partial<ManagedUser> & { email: string }):
   }
 
   localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
+
+  // If user was granted ad tool access, set approval flags and sync to Cloud KV
+  if (updatedUser.hasAdToolAccess) {
+    localStorage.setItem(`mnc_approved_user_${updatedUser.email.toLowerCase()}`, 'true');
+    try {
+      const safe = updatedUser.email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+      fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/hr4hcm6c/usr_${safe}/approved`, {
+        method: 'POST',
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
   broadcastSettingsSync();
   return updatedUser;
 }
@@ -353,10 +365,21 @@ export function toggleUserAdAccess(email: string, grant: boolean): boolean {
   }
 
   // Also update approval flags for CreateYourAd integration
+  const safe = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
   if (grant) {
     localStorage.setItem(`mnc_approved_user_${email.toLowerCase()}`, 'true');
+    try {
+      fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/hr4hcm6c/usr_${safe}/approved`, {
+        method: 'POST',
+      }).catch(() => {});
+    } catch (e) {}
   } else {
     localStorage.removeItem(`mnc_approved_user_${email.toLowerCase()}`);
+    try {
+      fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/hr4hcm6c/usr_${safe}/none`, {
+        method: 'POST',
+      }).catch(() => {});
+    } catch (e) {}
   }
 
   broadcastSettingsSync();
