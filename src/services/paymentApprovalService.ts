@@ -57,8 +57,22 @@ export function getAllPaymentOrders(): PaymentOrderData[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_ALL_ORDERS);
     if (!raw) return [];
-    const list = JSON.parse(raw) as PaymentOrderData[];
-    return Array.isArray(list) ? list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter((o) => o && typeof o === 'object' && o.orderId)
+      .map((o) => ({
+        ...o,
+        orderId: String(o.orderId || ''),
+        senderPhone: o.senderPhone ? String(o.senderPhone) : '',
+        userName: o.userName ? String(o.userName) : 'غير مسجل اسم',
+        userEmail: o.userEmail ? String(o.userEmail) : '',
+        amount: Number(o.amount) || ADMIN_CONFIG.amountEGP || 200,
+        status: o.status || 'pending',
+        paymentMethod: o.paymentMethod || 'vodafone_cash',
+        createdAt: o.createdAt || new Date().toISOString(),
+      }))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (e) {
     return [];
   }
@@ -76,11 +90,25 @@ export async function syncOrdersFromCloud(): Promise<PaymentOrderData[]> {
     if (Array.isArray(cloudOrders)) {
       const local = getAllPaymentOrders();
       const map = new Map<string, PaymentOrderData>();
-      local.forEach((o) => map.set(o.orderId, o));
-      cloudOrders.forEach((o: PaymentOrderData) => {
-        const existing = map.get(o.orderId);
-        if (!existing || new Date(o.createdAt || 0).getTime() >= new Date(existing.createdAt || 0).getTime()) {
-          map.set(o.orderId, o);
+      local.forEach((o) => {
+        if (o && o.orderId) map.set(o.orderId, o);
+      });
+      cloudOrders.forEach((o: any) => {
+        if (!o || !o.orderId) return;
+        const sanitized: PaymentOrderData = {
+          ...o,
+          orderId: String(o.orderId),
+          senderPhone: o.senderPhone ? String(o.senderPhone) : '',
+          userName: o.userName ? String(o.userName) : 'غير مسجل اسم',
+          userEmail: o.userEmail ? String(o.userEmail) : '',
+          amount: Number(o.amount) || ADMIN_CONFIG.amountEGP || 200,
+          status: o.status || 'pending',
+          paymentMethod: o.paymentMethod || 'vodafone_cash',
+          createdAt: o.createdAt || new Date().toISOString(),
+        };
+        const existing = map.get(sanitized.orderId);
+        if (!existing || new Date(sanitized.createdAt).getTime() >= new Date(existing.createdAt || 0).getTime()) {
+          map.set(sanitized.orderId, sanitized);
         }
       });
       const merged = Array.from(map.values()).sort(

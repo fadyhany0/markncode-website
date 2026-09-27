@@ -155,17 +155,27 @@ const AdminPayments: React.FC = () => {
 
   // Load and refresh all system data from cache and cloud
   const refreshAllData = () => {
-    setOrders(getAllPaymentOrders());
-    syncOrdersFromCloud().then((cloudList) => {
-      if (cloudList && cloudList.length >= 0) {
-        setOrders(cloudList);
-      }
-    });
-    setUsersList(getAllManagedUsers());
-    setInquiriesList(getAllInquiries());
-    setCampaignLogs(getSavedCampaignLogs());
-    const currentSettings = getSiteSettings();
-    setSiteSettings(currentSettings);
+    try {
+      const localOrders = getAllPaymentOrders();
+      setOrders(Array.isArray(localOrders) ? localOrders : []);
+      syncOrdersFromCloud()
+        .then((cloudList) => {
+          if (Array.isArray(cloudList)) {
+            setOrders(cloudList);
+          }
+        })
+        .catch(() => {});
+      const users = getAllManagedUsers();
+      setUsersList(Array.isArray(users) ? users : []);
+      const inqs = getAllInquiries();
+      setInquiriesList(Array.isArray(inqs) ? inqs : []);
+      const camps = getSavedCampaignLogs();
+      setCampaignLogs(Array.isArray(camps) ? camps : []);
+      const currentSettings = getSiteSettings();
+      setSiteSettings(currentSettings);
+    } catch (e) {
+      console.error('Error refreshing admin data:', e);
+    }
   };
 
   useEffect(() => {
@@ -360,59 +370,67 @@ const AdminPayments: React.FC = () => {
     e.target.value = '';
   };
 
-  // WhatsApp Link Helper
-  const buildWhatsAppChatUrl = (phone: string, text: string) => {
-    const clean = phone.replace(/[^0-9]/g, '');
+  // WhatsApp Link Helper - 100% crash-proof
+  const buildWhatsAppChatUrl = (phone?: string | null, text?: string) => {
+    if (!phone) return 'https://wa.me/201067283396';
+    const clean = String(phone).replace(/[^0-9]/g, '');
+    if (!clean) return 'https://wa.me/201067283396';
     const intl = clean.startsWith('0') ? `2${clean}` : clean;
-    return `https://wa.me/${intl}?text=${encodeURIComponent(text)}`;
+    return `https://wa.me/${intl}?text=${encodeURIComponent(text || '')}`;
   };
 
-  // Metrics Calculations
+  // Metrics Calculations - 100% crash-proof
   const approvedOrders = useMemo(
-    () => orders.filter((o) => o.status === 'approved' || o.status === 'used'),
+    () => (Array.isArray(orders) ? orders.filter((o) => o && (o.status === 'approved' || o.status === 'used')) : []),
     [orders]
   );
-  const pendingOrders = useMemo(() => orders.filter((o) => o.status === 'pending'), [orders]);
+  const pendingOrders = useMemo(
+    () => (Array.isArray(orders) ? orders.filter((o) => o && o.status === 'pending') : []),
+    [orders]
+  );
   const totalRevenue = useMemo(
-    () => approvedOrders.reduce((sum, o) => sum + (o.amount || siteSettings.adToolPriceEGP), 0),
-    [approvedOrders, siteSettings.adToolPriceEGP]
+    () => approvedOrders.reduce((sum, o) => sum + (Number(o?.amount) || siteSettings?.adToolPriceEGP || 200), 0),
+    [approvedOrders, siteSettings]
   );
 
-  // Filtered Orders
+  // Filtered Orders - 100% crash-proof
   const filteredOrders = useMemo(() => {
+    if (!Array.isArray(orders)) return [];
     let result = [...orders];
     if (orderFilter !== 'all') {
-      result = result.filter((o) => o.status === orderFilter);
+      result = result.filter((o) => o && o.status === orderFilter);
     }
-    if (orderSearch.trim()) {
+    if (orderSearch && orderSearch.trim()) {
       const q = orderSearch.toLowerCase().trim();
       result = result.filter(
         (o) =>
-          o.orderId.toLowerCase().includes(q) ||
-          o.userEmail.toLowerCase().includes(q) ||
-          o.userName.toLowerCase().includes(q) ||
-          o.senderPhone.includes(q)
+          (o?.orderId && String(o.orderId).toLowerCase().includes(q)) ||
+          (o?.userEmail && String(o.userEmail).toLowerCase().includes(q)) ||
+          (o?.userName && String(o.userName).toLowerCase().includes(q)) ||
+          (o?.senderPhone && String(o.senderPhone).includes(q))
       );
     }
     return result;
   }, [orders, orderFilter, orderSearch]);
 
-  // Filtered Users
+  // Filtered Users - 100% crash-proof
   const filteredUsers = useMemo(() => {
-    if (!userSearch.trim()) return usersList;
+    if (!Array.isArray(usersList)) return [];
+    if (!userSearch || !userSearch.trim()) return usersList;
     const q = userSearch.toLowerCase().trim();
     return usersList.filter(
       (u) =>
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        (u.phone && u.phone.includes(q))
+        (u?.name && String(u.name).toLowerCase().includes(q)) ||
+        (u?.email && String(u.email).toLowerCase().includes(q)) ||
+        (u?.phone && String(u.phone).includes(q))
     );
   }, [usersList, userSearch]);
 
-  // Filtered Inquiries
+  // Filtered Inquiries - 100% crash-proof
   const filteredInquiries = useMemo(() => {
+    if (!Array.isArray(inquiriesList)) return [];
     if (inquiryFilter === 'all') return inquiriesList;
-    return inquiriesList.filter((i) => i.status === inquiryFilter);
+    return inquiriesList.filter((i) => i && i.status === inquiryFilter);
   }, [inquiriesList, inquiryFilter]);
 
   // If not authenticated and not Google admin, show protected gate without leaking admin email
@@ -1060,9 +1078,9 @@ const AdminPayments: React.FC = () => {
                     </Box>
                   ) : (
                     <Stack spacing={1.5}>
-                      {orders.slice(0, 5).map((o) => (
+                      {orders.slice(0, 5).map((o, idx) => (
                         <Box
-                          key={o.orderId}
+                          key={o?.orderId || `ord_${idx}`}
                           sx={{
                             p: 2,
                             borderRadius: '14px',
@@ -1077,11 +1095,11 @@ const AdminPayments: React.FC = () => {
                         >
                           <Box>
                             <Typography variant="body2" sx={{ fontWeight: 800, color: '#ffffff' }}>
-                              {o.userName || o.userEmail}
+                              {o?.userName || o?.userEmail || 'عميل'}
                             </Typography>
                             <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
-                              {o.paymentMethod === 'vodafone_cash' ? 'فودافون كاش 🔴' : 'انستا باي 🟣'} | رقم:{' '}
-                              {o.senderPhone}
+                              {o?.paymentMethod === 'vodafone_cash' ? 'فودافون كاش 🔴' : 'انستا باي 🟣'} | رقم:{' '}
+                              {o?.senderPhone || '—'}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1159,9 +1177,9 @@ const AdminPayments: React.FC = () => {
                     <Box sx={{ p: 4, textAlign: 'center', color: '#94a3b8' }}>لا توجد طلبات واردة حالياً.</Box>
                   ) : (
                     <Stack spacing={1.5}>
-                      {inquiriesList.slice(0, 5).map((inq) => (
+                      {inquiriesList.slice(0, 5).map((inq, idx) => (
                         <Box
-                          key={inq.id}
+                          key={inq?.id || `inq_${idx}`}
                           sx={{
                             p: 2,
                             borderRadius: '14px',
@@ -1177,11 +1195,11 @@ const AdminPayments: React.FC = () => {
                           <Box sx={{ maxWidth: '70%' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="body2" sx={{ fontWeight: 800, color: '#ffffff' }}>
-                                {inq.name}
+                                {inq?.name || 'عميل'}
                               </Typography>
                               <Chip
                                 size="small"
-                                label={inq.source === 'bot_for_doctor' ? 'بوت الأطباء 🩺' : 'تواصل معنا 📩'}
+                                label={inq?.source === 'bot_for_doctor' ? 'بوت الأطباء 🩺' : 'تواصل معنا 📩'}
                                 sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontSize: '0.7rem' }}
                               />
                             </Box>
@@ -1195,7 +1213,7 @@ const AdminPayments: React.FC = () => {
                                 overflow: 'hidden',
                               }}
                             >
-                              {inq.message}
+                              {inq?.message || ''}
                             </Typography>
                           </Box>
 
@@ -1203,7 +1221,7 @@ const AdminPayments: React.FC = () => {
                             <Button
                               size="small"
                               variant="outlined"
-                              href={buildWhatsAppChatUrl(inq.phone, `أهلاً دكتور/أستاذ ${inq.name}، بخصوص طلبك في MarkNCode...`)}
+                              href={buildWhatsAppChatUrl(inq?.phone, `أهلاً دكتور/أستاذ ${inq?.name || ''}، بخصوص طلبك في MarkNCode...`)}
                               target="_blank"
                               startIcon={<WhatsAppIcon sx={{ color: '#25d366' }} />}
                               sx={{
@@ -1349,77 +1367,77 @@ const AdminPayments: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredOrders.map((order) => (
+                      filteredOrders.map((order, idx) => (
                         <TableRow
-                          key={order.orderId}
+                          key={order?.orderId || `ord_${idx}`}
                           sx={{
                             '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
                             borderBottom: '1px solid rgba(255,255,255,0.06)',
                           }}
                         >
                           <TableCell sx={{ color: '#ffffff', fontWeight: 800, fontFamily: 'monospace' }}>
-                            {order.orderId}
+                            {order?.orderId || '—'}
                           </TableCell>
 
                           <TableCell>
                             <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                              {order.userName || 'غير مسجل اسم'}
+                              {order?.userName || 'غير مسجل اسم'}
                             </Typography>
                             <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
-                              {order.userEmail}
+                              {order?.userEmail || '—'}
                             </Typography>
                           </TableCell>
 
                           <TableCell>
                             <Chip
                               size="small"
-                              label={order.paymentMethod === 'vodafone_cash' ? 'فودافون كاش 🔴' : 'انستا باي 🟣'}
+                              label={order?.paymentMethod === 'vodafone_cash' ? 'فودافون كاش 🔴' : 'انستا باي 🟣'}
                               sx={{
                                 bgcolor:
-                                  order.paymentMethod === 'vodafone_cash'
+                                  order?.paymentMethod === 'vodafone_cash'
                                     ? 'rgba(239, 68, 68, 0.15)'
                                     : 'rgba(168, 85, 247, 0.15)',
-                                color: order.paymentMethod === 'vodafone_cash' ? '#fca5a5' : '#e9d5ff',
+                                color: order?.paymentMethod === 'vodafone_cash' ? '#fca5a5' : '#e9d5ff',
                                 fontWeight: 700,
                               }}
                             />
                           </TableCell>
 
                           <TableCell sx={{ color: '#38bdf8', fontWeight: 800, direction: 'ltr' }}>
-                            {order.senderPhone}
+                            {order?.senderPhone || '—'}
                           </TableCell>
 
                           <TableCell sx={{ color: '#34d399', fontWeight: 900 }}>
-                            {order.amount || siteSettings.adToolPriceEGP} ج.م
+                            {order?.amount || siteSettings?.adToolPriceEGP || 200} ج.م
                           </TableCell>
 
                           <TableCell sx={{ color: '#cbd5e1', fontSize: '0.8rem' }}>
-                            {order.createdAt ? new Date(order.createdAt).toLocaleString('ar-EG') : 'الآن'}
+                            {order?.createdAt ? new Date(order.createdAt).toLocaleString('ar-EG') : 'الآن'}
                           </TableCell>
 
                           <TableCell>
                             <Chip
                               size="small"
                               label={
-                                order.status === 'approved'
+                                order?.status === 'approved'
                                   ? 'معتمد ✔️'
-                                  : order.status === 'pending'
+                                  : order?.status === 'pending'
                                   ? 'معلق ⏳'
-                                  : order.status === 'used'
+                                  : order?.status === 'used'
                                   ? 'مستهلك 🎉'
                                   : 'مرفوض ❌'
                               }
                               sx={{
                                 bgcolor:
-                                  order.status === 'approved' || order.status === 'used'
+                                  order?.status === 'approved' || order?.status === 'used'
                                     ? 'rgba(16, 185, 129, 0.2)'
-                                    : order.status === 'pending'
+                                    : order?.status === 'pending'
                                     ? 'rgba(239, 68, 68, 0.2)'
                                     : 'rgba(255,255,255,0.1)',
                                 color:
-                                  order.status === 'approved' || order.status === 'used'
+                                  order?.status === 'approved' || order?.status === 'used'
                                     ? '#34d399'
-                                    : order.status === 'pending'
+                                    : order?.status === 'pending'
                                     ? '#f87171'
                                     : '#cbd5e1',
                                 fontWeight: 800,
@@ -1429,7 +1447,7 @@ const AdminPayments: React.FC = () => {
 
                           <TableCell align="center">
                             <Stack direction="row" spacing={1} justifyContent="center">
-                              {order.status === 'pending' && (
+                              {order?.status === 'pending' && (
                                 <>
                                   <Button
                                     size="small"
@@ -1465,7 +1483,7 @@ const AdminPayments: React.FC = () => {
                                 </>
                               )}
 
-                              {order.status !== 'pending' && (
+                              {order?.status !== 'pending' && (
                                 <Button
                                   size="small"
                                   variant="outlined"
@@ -1487,8 +1505,8 @@ const AdminPayments: React.FC = () => {
                                 <IconButton
                                   size="small"
                                   href={buildWhatsAppChatUrl(
-                                    order.senderPhone,
-                                    `أهلاً بك أستاذ ${order.userName || ''}، بخصوص طلب تحويل الـ ${order.amount} ج.م في منصة MarkNCode (طلب رقم ${order.orderId})...`
+                                    order?.senderPhone,
+                                    `أهلاً بك أستاذ ${order?.userName || ''}، بخصوص طلب تحويل الـ ${order?.amount || 200} ج.م في منصة MarkNCode (طلب رقم ${order?.orderId || ''})...`
                                   )}
                                   target="_blank"
                                   sx={{ color: '#25d366' }}
@@ -1620,9 +1638,9 @@ const AdminPayments: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredUsers.map((u) => (
+                      filteredUsers.map((u, idx) => (
                         <TableRow
-                          key={u.id}
+                          key={u?.id || u?.email || `user_${idx}`}
                           sx={{
                             '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' },
                             borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -1630,22 +1648,22 @@ const AdminPayments: React.FC = () => {
                         >
                           <TableCell>
                             <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                              {u.name}
+                              {u?.name || 'مستخدم'}
                             </Typography>
                             <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
-                              {u.email}
+                              {u?.email || '—'}
                             </Typography>
                           </TableCell>
 
-                          <TableCell sx={{ color: '#cbd5e1', direction: 'ltr' }}>{u.phone || '—'}</TableCell>
+                          <TableCell sx={{ color: '#cbd5e1', direction: 'ltr' }}>{u?.phone || '—'}</TableCell>
 
                           <TableCell>
                             <Chip
                               size="small"
-                              label={u.role === 'admin' ? 'مدير نظام 👑' : 'مستخدم عادي 👤'}
+                              label={u?.role === 'admin' ? 'مدير نظام 👑' : 'مستخدم عادي 👤'}
                               sx={{
-                                bgcolor: u.role === 'admin' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)',
-                                color: u.role === 'admin' ? '#38bdf8' : '#cbd5e1',
+                                bgcolor: u?.role === 'admin' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.08)',
+                                color: u?.role === 'admin' ? '#38bdf8' : '#cbd5e1',
                                 fontWeight: 800,
                               }}
                             />
@@ -1654,10 +1672,10 @@ const AdminPayments: React.FC = () => {
                           <TableCell>
                             <Chip
                               size="small"
-                              label={u.status === 'active' ? 'نشط 🟢' : 'محظور 🚫'}
+                              label={u?.status === 'active' ? 'نشط 🟢' : 'محظور 🚫'}
                               sx={{
-                                bgcolor: u.status === 'active' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                color: u.status === 'active' ? '#34d399' : '#f87171',
+                                bgcolor: u?.status === 'active' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                color: u?.status === 'active' ? '#34d399' : '#f87171',
                                 fontWeight: 800,
                               }}
                             />
@@ -1666,43 +1684,43 @@ const AdminPayments: React.FC = () => {
                           <TableCell>
                             <Chip
                               size="small"
-                              label={u.hasAdToolAccess ? 'مفعل ومتاح ✔️' : 'مغلق (يلزم شحن) 🔒'}
+                              label={u?.hasAdToolAccess ? 'مفعل ومتاح ✔️' : 'مغلق (يلزم شحن) 🔒'}
                               sx={{
-                                bgcolor: u.hasAdToolAccess ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
-                                color: u.hasAdToolAccess ? '#34d399' : '#94a3b8',
+                                bgcolor: u?.hasAdToolAccess ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
+                                color: u?.hasAdToolAccess ? '#34d399' : '#94a3b8',
                                 fontWeight: 800,
                               }}
                             />
                           </TableCell>
 
                           <TableCell sx={{ color: '#cbd5e1', fontSize: '0.8rem' }}>
-                            {new Date(u.createdAt).toLocaleDateString('ar-EG')}
+                            {u?.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}
                           </TableCell>
 
                           <TableCell align="center">
                             <Stack direction="row" spacing={1} justifyContent="center">
-                              <Tooltip title={u.hasAdToolAccess ? 'سحب صلاحية الأداة' : 'منح وصول مجاني للأداة'}>
+                              <Tooltip title={u?.hasAdToolAccess ? 'سحب صلاحية الأداة' : 'منح وصول مجاني للأداة'}>
                                 <Button
                                   size="small"
                                   variant="outlined"
-                                  onClick={() => handleToggleUserAccess(u.email, !u.hasAdToolAccess)}
+                                  onClick={() => handleToggleUserAccess(u?.email || '', !u?.hasAdToolAccess)}
                                   sx={{
-                                    borderColor: u.hasAdToolAccess ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)',
-                                    color: u.hasAdToolAccess ? '#f87171' : '#34d399',
+                                    borderColor: u?.hasAdToolAccess ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)',
+                                    color: u?.hasAdToolAccess ? '#f87171' : '#34d399',
                                     fontWeight: 700,
                                     fontSize: '0.75rem',
                                     borderRadius: '10px',
                                   }}
                                 >
-                                  {u.hasAdToolAccess ? 'قفل الأداة' : 'منح رصيد 🎁'}
+                                  {u?.hasAdToolAccess ? 'قفل الأداة' : 'منح رصيد 🎁'}
                                 </Button>
                               </Tooltip>
 
-                              <Tooltip title={u.status === 'active' ? 'حظر الحساب' : 'إلغاء الحظر'}>
+                              <Tooltip title={u?.status === 'active' ? 'حظر الحساب' : 'إلغاء الحظر'}>
                                 <IconButton
                                   size="small"
-                                  onClick={() => handleToggleUserBan(u.email)}
-                                  sx={{ color: u.status === 'active' ? '#f87171' : '#34d399' }}
+                                  onClick={() => handleToggleUserBan(u?.email || '')}
+                                  sx={{ color: u?.status === 'active' ? '#f87171' : '#34d399' }}
                                 >
                                   <BlockIcon fontSize="small" />
                                 </IconButton>
@@ -1711,7 +1729,7 @@ const AdminPayments: React.FC = () => {
                               <Tooltip title="حذف المستخدم">
                                 <IconButton
                                   size="small"
-                                  onClick={() => handleDeleteUser(u.email)}
+                                  onClick={() => handleDeleteUser(u?.email || '')}
                                   sx={{ color: '#94a3b8', '&:hover': { color: '#ef4444' } }}
                                 >
                                   <DeleteIcon fontSize="small" />
@@ -1756,17 +1774,20 @@ const AdminPayments: React.FC = () => {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={settingsForm.announcement.enabled}
+                        checked={Boolean(settingsForm?.announcement?.enabled)}
                         onChange={(e) =>
                           setSettingsForm({
                             ...settingsForm,
-                            announcement: { ...settingsForm.announcement, enabled: e.target.checked },
+                            announcement: {
+                              ...(settingsForm?.announcement || { message: '', type: 'info' }),
+                              enabled: e.target.checked,
+                            },
                           })
                         }
                         color="primary"
                       />
                     }
-                    label={settingsForm.announcement.enabled ? 'مفعّل وشغال 🟢' : 'معطل ومخفي ⚪'}
+                    label={settingsForm?.announcement?.enabled ? 'مفعّل وشغال 🟢' : 'معطل ومخفي ⚪'}
                     sx={{ color: '#ffffff', fontWeight: 700 }}
                   />
                 </Box>
@@ -1776,11 +1797,14 @@ const AdminPayments: React.FC = () => {
                     <TextField
                       fullWidth
                       label="نص الإعلان أو العرض الترويجي"
-                      value={settingsForm.announcement.message}
+                      value={settingsForm?.announcement?.message || ''}
                       onChange={(e) =>
                         setSettingsForm({
                           ...settingsForm,
-                          announcement: { ...settingsForm.announcement, message: e.target.value },
+                          announcement: {
+                            ...(settingsForm?.announcement || { enabled: true, type: 'info' }),
+                            message: e.target.value,
+                          },
                         })
                       }
                       sx={{
@@ -1795,11 +1819,14 @@ const AdminPayments: React.FC = () => {
                     <TextField
                       fullWidth
                       label="نص زر الإجراء (Call to Action)"
-                      value={settingsForm.announcement.linkText || ''}
+                      value={settingsForm?.announcement?.linkText || ''}
                       onChange={(e) =>
                         setSettingsForm({
                           ...settingsForm,
-                          announcement: { ...settingsForm.announcement, linkText: e.target.value },
+                          announcement: {
+                            ...(settingsForm?.announcement || { enabled: true, message: '', type: 'info' }),
+                            linkText: e.target.value,
+                          },
                         })
                       }
                       sx={{
@@ -1814,11 +1841,14 @@ const AdminPayments: React.FC = () => {
                     <TextField
                       fullWidth
                       label="رابط الزر (URL)"
-                      value={settingsForm.announcement.linkUrl || ''}
+                      value={settingsForm?.announcement?.linkUrl || ''}
                       onChange={(e) =>
                         setSettingsForm({
                           ...settingsForm,
-                          announcement: { ...settingsForm.announcement, linkUrl: e.target.value },
+                          announcement: {
+                            ...(settingsForm?.announcement || { enabled: true, message: '', type: 'info' }),
+                            linkUrl: e.target.value,
+                          },
                         })
                       }
                       sx={{
@@ -2081,21 +2111,29 @@ const AdminPayments: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {campaignLogs.map((c) => (
-                      <TableRow key={c.id} sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                        <TableCell sx={{ color: '#ffffff', fontWeight: 800 }}>{c.productName}</TableCell>
-                        <TableCell sx={{ color: '#cbd5e1' }}>{c.businessField}</TableCell>
-                        <TableCell>
-                          <Chip size="small" label={c.objective} sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700 }} />
-                        </TableCell>
-                        <TableCell sx={{ color: '#ffffff', fontWeight: 700 }}>{c.budget} ج.م / {c.days} أيام</TableCell>
-                        <TableCell sx={{ color: '#cbd5e1' }}>{c.platform}</TableCell>
-                        <TableCell sx={{ color: '#34d399', fontWeight: 800 }}>{c.roiEstimate}</TableCell>
-                        <TableCell sx={{ color: '#cbd5e1', fontSize: '0.8rem' }}>
-                          {new Date(c.createdAt).toLocaleDateString('ar-EG')}
+                    {campaignLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                          لا توجد خطط إعلانية مسجلة حتى الآن.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      campaignLogs.map((c, idx) => (
+                        <TableRow key={c?.id || `cmp_${idx}`} sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                          <TableCell sx={{ color: '#ffffff', fontWeight: 800 }}>{c?.productName || '—'}</TableCell>
+                          <TableCell sx={{ color: '#cbd5e1' }}>{c?.businessField || '—'}</TableCell>
+                          <TableCell>
+                            <Chip size="small" label={c?.objective || 'إعلان'} sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700 }} />
+                          </TableCell>
+                          <TableCell sx={{ color: '#ffffff', fontWeight: 700 }}>{c?.budget || 0} ج.م / {c?.days || 0} أيام</TableCell>
+                          <TableCell sx={{ color: '#cbd5e1' }}>{c?.platform || '—'}</TableCell>
+                          <TableCell sx={{ color: '#34d399', fontWeight: 800 }}>{c?.roiEstimate || '—'}</TableCell>
+                          <TableCell sx={{ color: '#cbd5e1', fontSize: '0.8rem' }}>
+                            {c?.createdAt ? new Date(c.createdAt).toLocaleDateString('ar-EG') : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -2204,40 +2242,40 @@ const AdminPayments: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredInquiries.map((inq) => (
-                        <TableRow key={inq.id} sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      filteredInquiries.map((inq, idx) => (
+                        <TableRow key={inq?.id || `inq_${idx}`} sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                           <TableCell>
                             <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                              {inq.name}
+                              {inq?.name || 'عميل'}
                             </Typography>
                             <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
-                              {inq.email}
+                              {inq?.email || '—'}
                             </Typography>
                           </TableCell>
 
                           <TableCell sx={{ color: '#38bdf8', fontWeight: 800, direction: 'ltr' }}>
-                            {inq.phone}
+                            {inq?.phone || '—'}
                           </TableCell>
 
                           <TableCell>
                             <Chip
                               size="small"
-                              label={inq.source === 'bot_for_doctor' ? 'بوت الأطباء 🩺' : 'تواصل معنا 📩'}
+                              label={inq?.source === 'bot_for_doctor' ? 'بوت الأطباء 🩺' : 'تواصل معنا 📩'}
                               sx={{
-                                bgcolor: inq.source === 'bot_for_doctor' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                                color: inq.source === 'bot_for_doctor' ? '#38bdf8' : '#34d399',
+                                bgcolor: inq?.source === 'bot_for_doctor' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                color: inq?.source === 'bot_for_doctor' ? '#38bdf8' : '#34d399',
                                 fontWeight: 700,
                               }}
                             />
                           </TableCell>
 
                           <TableCell sx={{ color: '#cbd5e1', fontWeight: 600 }}>
-                            {inq.serviceRequested || 'استشارة عامة'}
+                            {inq?.serviceRequested || 'استشارة عامة'}
                           </TableCell>
 
                           <TableCell sx={{ color: '#e2e8f0', maxWidth: 280 }}>
                             <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.6 }}>
-                              {inq.message}
+                              {inq?.message || ''}
                             </Typography>
                           </TableCell>
 
@@ -2250,21 +2288,23 @@ const AdminPayments: React.FC = () => {
                                   size="small"
                                   label={st === 'new' ? 'جديد' : st === 'contacted' ? 'تواصلنا' : 'تم الحجز'}
                                   onClick={() => {
-                                    updateInquiryStatus(inq.id, st);
-                                    refreshAllData();
+                                    if (inq?.id) {
+                                      updateInquiryStatus(inq.id, st);
+                                      refreshAllData();
+                                    }
                                   }}
                                   sx={{
                                     fontSize: '0.72rem',
                                     fontWeight: 700,
                                     bgcolor:
-                                      inq.status === st
+                                      inq?.status === st
                                         ? st === 'new'
                                           ? '#ef4444'
                                           : st === 'contacted'
                                           ? '#2563eb'
                                           : '#10b981'
                                         : 'rgba(255,255,255,0.06)',
-                                    color: inq.status === st ? '#ffffff' : '#94a3b8',
+                                    color: inq?.status === st ? '#ffffff' : '#94a3b8',
                                   }}
                                 />
                               ))}
@@ -2276,8 +2316,8 @@ const AdminPayments: React.FC = () => {
                               size="small"
                               variant="contained"
                               href={buildWhatsAppChatUrl(
-                                inq.phone,
-                                `أهلاً دكتور/أستاذ ${inq.name}، معك إدارة منصة MarkNCode بخصوص استفسارك عن ${inq.serviceRequested || 'خدماتنا'}...`
+                                inq?.phone,
+                                `أهلاً دكتور/أستاذ ${inq?.name || ''}، معك إدارة منصة MarkNCode بخصوص استفسارك عن ${inq?.serviceRequested || 'خدماتنا'}...`
                               )}
                               target="_blank"
                               startIcon={<WhatsAppIcon />}
@@ -2329,7 +2369,7 @@ const AdminPayments: React.FC = () => {
                   fullWidth
                   type="password"
                   label="رمز المرور الجديد"
-                  value={settingsForm.adminPasscode}
+                  value={settingsForm?.adminPasscode || ''}
                   onChange={(e) => setSettingsForm({ ...settingsForm, adminPasscode: e.target.value })}
                   sx={{
                     bgcolor: 'rgba(0,0,0,0.3)',
@@ -2358,19 +2398,19 @@ const AdminPayments: React.FC = () => {
                 p: { xs: 2.5, sm: 3.5 },
                 borderRadius: '24px',
                 bgcolor: 'rgba(15, 23, 42, 0.85)',
-                border: siteSettings.maintenanceMode ? '2px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
+                border: siteSettings?.maintenanceMode ? '2px solid #ef4444' : '1px solid rgba(255,255,255,0.1)',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: siteSettings.maintenanceMode ? '#f87171' : '#f8fafc' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: siteSettings?.maintenanceMode ? '#f87171' : '#f8fafc' }}>
                     ⚠️ وضع الصيانة الشامل للموقع (Maintenance Mode):
                   </Typography>
                   <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
                     عند تفعيله، يتم إغلاق الوصول لصفحات الموقع للزوار وعرض رسالة صيانة احترافية
                   </Typography>
                 </Box>
-                <Switch checked={siteSettings.maintenanceMode} onChange={handleToggleMaintenance} color="error" />
+                <Switch checked={Boolean(siteSettings?.maintenanceMode)} onChange={handleToggleMaintenance} color="error" />
               </Box>
 
               <TextField
@@ -2378,7 +2418,7 @@ const AdminPayments: React.FC = () => {
                 multiline
                 rows={2}
                 label="رسالة الصيانة التي تظهر للزوار"
-                value={settingsForm.maintenanceMessage}
+                value={settingsForm?.maintenanceMessage || ''}
                 onChange={(e) => setSettingsForm({ ...settingsForm, maintenanceMessage: e.target.value })}
                 sx={{
                   bgcolor: 'rgba(0,0,0,0.3)',
@@ -2640,4 +2680,119 @@ const AdminPayments: React.FC = () => {
   );
 };
 
-export default AdminPayments;
+interface AdminErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface AdminErrorBoundaryState {
+  hasError: boolean;
+  errorMessage: string;
+}
+
+class AdminErrorBoundary extends React.Component<AdminErrorBoundaryProps, AdminErrorBoundaryState> {
+  constructor(props: AdminErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, errorMessage: '' };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMessage: error?.message || 'Unexpected render error' };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Admin Panel crash intercepted by ErrorBoundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Box
+          sx={{
+            minHeight: '100vh',
+            bgcolor: '#0b0f19',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 3,
+          }}
+        >
+          <Card
+            sx={{
+              maxWidth: 550,
+              width: '100%',
+              p: 4,
+              bgcolor: 'rgba(15, 23, 42, 0.95)',
+              borderRadius: '24px',
+              border: '1.5px solid rgba(239, 68, 68, 0.5)',
+              textAlign: 'center',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.8)',
+            }}
+          >
+            <Box
+              sx={{
+                width: 70,
+                height: 70,
+                borderRadius: '50%',
+                bgcolor: 'rgba(239, 68, 68, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
+              }}
+            >
+              <CancelIcon sx={{ fontSize: 40, color: '#ef4444' }} />
+            </Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5, color: '#ffffff' }}>
+              تم استعادة واستقرار لوحة التحكم 🛡️
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#94a3b8', mb: 3, lineHeight: 1.7 }}>
+              حدث تعارض مؤقت في قراءة بعض البيانات الواردة، وقد تم تفعيل درع الحماية لمنع الشاشة البيضاء. يمكنك إعادة تحميل البيانات الحية بنقرة واحدة.
+            </Typography>
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button
+                variant="contained"
+                onClick={() => {
+                  this.setState({ hasError: false, errorMessage: '' });
+                  window.location.reload();
+                }}
+                sx={{
+                  bgcolor: '#2563eb',
+                  fontWeight: 800,
+                  borderRadius: '12px',
+                  px: 3,
+                  '&:hover': { bgcolor: '#1d4ed8' },
+                }}
+              >
+                🔄 تحديث البيانات الحية
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  window.location.href = '/home';
+                }}
+                sx={{
+                  color: '#cbd5e1',
+                  borderColor: 'rgba(255,255,255,0.2)',
+                  borderRadius: '12px',
+                }}
+              >
+                العودة للرئيسية
+              </Button>
+            </Stack>
+          </Card>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const ProtectedAdminPayments: React.FC = () => (
+  <AdminErrorBoundary>
+    <AdminPayments />
+  </AdminErrorBoundary>
+);
+
+export default ProtectedAdminPayments;
