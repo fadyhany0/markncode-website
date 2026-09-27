@@ -19,6 +19,7 @@ export interface SiteSettings {
   promoDiscountPercent?: number;
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  geminiApiKey?: string;
   announcement: {
     enabled: boolean;
     message: string;
@@ -89,6 +90,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   promoDiscountPercent: 0,
   maintenanceMode: false,
   maintenanceMessage: 'الموقع يخضع حالياً لعملية صيانة وتحديث خوارزميات الذكاء الاصطناعي. سنعود للعمل بكامل طاقتنا في دقائق معدودة!',
+  geminiApiKey: '',
   announcement: {
     enabled: true,
     message: '🚀 أطلق إعلانك المميز اليوم بمساعدة مستشار MarkNCode AI الذكي مع استهداف دقيق وسكريبتات ريلز فيروسية!',

@@ -1,7 +1,13 @@
 // Gemini AI Integration Service for MarkNCode AI Ad Studio
-// Powered by Google Gemini API (gemini-flash-latest, gemini-3.8-flash)
+// Powered by Google Gemini API (gemini-1.5-flash, gemini-2.0-flash, gemini-flash-latest)
+import { getSiteSettings } from './adminSettingsService';
 
 export const getGeminiApiKey = (): string => {
+  try {
+    const fromSettings = getSiteSettings()?.geminiApiKey;
+    if (fromSettings && fromSettings.trim()) return fromSettings.trim();
+  } catch (e) {}
+
   return (
     (typeof window !== 'undefined' && localStorage.getItem('mnc_gemini_api_key')) ||
     process.env.REACT_APP_GEMINI_API_KEY ||
@@ -194,10 +200,10 @@ export interface GeneratedGeminiCampaign {
 }
 
 const CANDIDATE_MODELS = [
+  'gemini-1.5-flash',
+  'gemini-2.0-flash',
   'gemini-flash-latest',
-  'gemini-flash-lite-latest',
-  'gemini-3.8-flash',
-  'gemini-3.5-flash',
+  'gemini-1.5-pro',
 ];
 
 async function callGeminiApiWithFallback(prompt: string, apiKey: string): Promise<string> {

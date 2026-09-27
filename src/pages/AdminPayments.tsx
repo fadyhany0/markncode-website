@@ -370,10 +370,13 @@ const AdminPayments: React.FC = () => {
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = updateSiteSettings(settingsForm);
+    if (updated.geminiApiKey !== undefined) {
+      localStorage.setItem('mnc_gemini_api_key', updated.geminiApiKey);
+    }
     setSiteSettings(updated);
     setSettingsSavedSuccess(true);
     setTimeout(() => setSettingsSavedSuccess(false), 3500);
-    showToast('⚙️ تم حفظ إعدادات الموقع وتحديث كل الصفحات بنجاح!');
+    showToast('⚙️ تم حفظ إعدادات الموقع ومفتاح الذكاء الاصطناعي بنجاح!');
   };
 
   // Maintenance Toggle
@@ -2133,6 +2136,49 @@ const AdminPayments: React.FC = () => {
                     />
                   </Grid>
                 </Grid>
+              </Card>
+
+              {/* Google Gemini AI API Configuration */}
+              <Card
+                sx={{
+                  p: { xs: 2.5, sm: 3.5 },
+                  borderRadius: '24px',
+                  bgcolor: 'rgba(15, 23, 42, 0.85)',
+                  border: '1.5px solid rgba(168, 85, 247, 0.45)',
+                  boxShadow: '0 8px 25px rgba(168, 85, 247, 0.15)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#c084fc' }}>
+                    🤖 مفتاح الربط مع Google Gemini AI API:
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={settingsForm.geminiApiKey?.trim() ? 'مفتاح API نشط ⚡' : 'يعمل بالمحرك المحلي التلقائي 🤖'}
+                    sx={{
+                      bgcolor: settingsForm.geminiApiKey?.trim() ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                      color: settingsForm.geminiApiKey?.trim() ? '#34d399' : '#fbbf24',
+                      fontWeight: 800,
+                    }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mb: 2.5, lineHeight: 1.8 }}>
+                  عند كتابة مفتاح Gemini هنا، تخرج جميع خطط الإعلانات والاستهداف وسكريبتات الريلز مباشرة عبر نموذج <strong>Gemini 1.5 Flash الحقيقي</strong>. وإذا تُرك الحقل فارغاً، يعمل الموقع تلقائياً بمحرك MarkNCode الداخلي لضمان عدم توقف الخدمة.
+                </Typography>
+
+                <TextField
+                  fullWidth
+                  placeholder="ضع مفتاحك هنا: AIzaSy... (من Google AI Studio)"
+                  value={settingsForm.geminiApiKey || ''}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, geminiApiKey: e.target.value })}
+                  helperText="💡 للحصول على مفتاح مجاني في دقيقة واحدة: ادخل على https://aistudio.google.com واضغط Get API key"
+                  FormHelperTextProps={{ sx: { color: '#93c5fd', fontSize: '0.82rem', mt: 1 } }}
+                  sx={{
+                    bgcolor: 'rgba(0,0,0,0.3)',
+                    borderRadius: '12px',
+                    '& input': { color: '#ffffff', fontWeight: 700, direction: 'ltr' },
+                  }}
+                />
               </Card>
 
               {/* Administrative Contact Info */}
