@@ -135,6 +135,39 @@ export interface CampaignObjectiveAdvisor {
   chatClosingScript: ChatClosingScript;
 }
 
+export interface TargetingTier {
+  id: 'direct' | 'lateral' | 'behavioral';
+  title: string;
+  adSetName: string;
+  badge: string;
+  badgeColor?: string;
+  description: string;
+  ageRange: string;
+  gender: string;
+  locations: string[];
+  radiusOrPinDrop: string;
+  coreInterests: string[];
+  metaExactKeywords: string[];
+  behaviors: string[];
+  exclusions: string[];
+  placements: string[];
+  bestCreativeFormat: string;
+  budgetSharePercent: number;
+  dailyBudgetShareEGP: number;
+  proSecret: string;
+}
+
+export interface AdvancedTargetingSuite {
+  tier1_direct: TargetingTier;
+  tier2_lateral: TargetingTier;
+  tier3_behavioral: TargetingTier;
+  budgetTestingMatrix: {
+    rule72Hours: string;
+    scalingTrigger: string;
+    killingTrigger: string;
+  };
+}
+
 export interface GeneratedGeminiCampaign {
   score: number;
   feasibilityVerdict: string;
@@ -168,6 +201,7 @@ export interface GeneratedGeminiCampaign {
     placements: string[];
     industrySecret: string;
   };
+  targetingSuite?: AdvancedTargetingSuite;
   policyRules: {
     bannedWords: string[];
     criticalPitfalls: string[];
@@ -503,6 +537,13 @@ ${JSON.stringify(payload.specifics, null, 2)}
 11. **رفض الحروف العشوائية وخبط الكيبورد (Rejection of Gibberish & Non-words)**:
 - إذا كان اسم المنتج أو المجال عبارة عن حروف عشوائية غير مفهومة (مثل "سبشسيىمىليسمنىلسيمنىممشسنب" أو "asdfghjk" أو خبط كيبورد بدون كلمات حقيقية)، إياك وتأليف استهداف أو التظاهر بفهم منتج وهمي!
 - يجب عليك في (feasibilityVerdict) و (rightWrongAudits) التصريح بحزم: "المدخل المكتوب عبارة عن حروف عشوائية غير مفهومة ولا تمثل أي منتج أو خدمة حقيقية. القاعدة الصارمة: أنا عايز اسم المنتج بالظبط أو المجال مفصل علشان يفهم منو و ميقولش اي حاجه و خلاص."
+12. **توليد 3 أنواع استهداف إعلاني متمايزة وشديدة الدقة (3 Distinct High-Precision Targeting Tiers)**:
+العميل يطلب صراحة: "الستهدفات عايزك تعمل 3 انواع من الاستهدفات و عايز الاستهدفات دقيقه اكتر".
+يجب عليك إلزامياً تضمين كائن "targetingSuite" كامل في مخرج الـ JSON يضم 3 مجموعات إعلانية (3 Ad Sets) دقيقة جداً:
+- **tier1_direct (النوع الأول: الاستهداف المباشر الدقيق Core Niche)**: استهداف الأشخاص الذين يبحثون صراحة عن المنتج/الخدمة، مع كتابة الكلمات المفتاحية الدقيقة في ميتا (Meta Exact Interests) بالإنجليزية والعربية وأسماء الماركات المقارنة.
+- **tier2_lateral (النوع الثاني: الاستهداف المتقاطع وحل المشكلة Lateral & Lifestyle)**: استهداف الأشخاص عبر مشكلتهم (Pain Point)، نمط حياتهم، والمناسبات التي تجبرهم على الشراء دون ذكر اسم المنتج صراحة، لخفض الـ CPA بنسبة 40% وتفادي مزادات المنافسين.
+- **tier3_behavioral (النوع الثالث: الاستهداف السلوكي والقوة الشرائية الفائقة Affluent Buyers Class A/B)**: استهداف الشريحة القادرة مادياً عبر سلوكيات الأجهزة الحديثة (iPhone 15/16 Pro)، المتسوقين المتفاعلين (Engaged Shoppers)، والمسافرين الدائمين، مع استثناءات صارمة (Exclusions) للمسوقين والمنافسين.
+- **budgetTestingMatrix**: مصفوفة اختبار الميزانية للمجموعات الثلاث وقاعدة الـ 72 ساعة ومتى تكبّر (Scale) ومتى توقف (Kill).
 
 أخرج النتيجة بصيغة JSON حصراً بدون أي نصوص تمهيدية:
 \`\`\`json
@@ -550,6 +591,76 @@ ${JSON.stringify(payload.specifics, null, 2)}
     "exclusions": ["استبعاد 1", "استبعاد 2"],
     "placements": ["Instagram Reels (9:16)", "TikTok Feed"],
     "industrySecret": "سر الاستهداف لعام 2026"
+  },
+  "targetingSuite": {
+    "tier1_direct": {
+      "id": "direct",
+      "title": "النوع الأول: الاستهداف المباشر الدقيق (Direct Core Niche)",
+      "adSetName": "AdSet 01 - Direct Interests [Cold]",
+      "badge": "طلب جاهز ومباشر 🎯",
+      "badgeColor": "#38bdf8",
+      "description": "شريحة العملاء الذين يبحثون صراحة وبشكل مباشر عن منتجك أو الخدمات المنافسة في السوق.",
+      "ageRange": "24 - 48 سنة",
+      "gender": "الكل / رجال / نساء",
+      "locations": ["المحافظات والمدن الأكثر طلباً"],
+      "radiusOrPinDrop": "Pin Drop 5km حول المقر أو المدينة كاملة",
+      "coreInterests": ["اهتمام مباشر 1 بالعربية", "اهتمام مباشر 2"],
+      "metaExactKeywords": ["English Meta Exact Interest 1", "English Keyword 2"],
+      "behaviors": ["المتسوقون المتفاعلون (Engaged Shoppers)"],
+      "exclusions": ["المسوقون الرقميون", "أصحاب الصفحات المماثلة"],
+      "placements": ["Instagram Feed & Explore", "Facebook Feed"],
+      "bestCreativeFormat": "إعلان العرض المباشر وصور/فيديو توضح ميزات المنتج والنتيجة فوراً",
+      "budgetSharePercent": 40,
+      "dailyBudgetShareEGP": 200,
+      "proSecret": "سر ضبط هذا النوع في مدير الإعلانات لتحقيق مبيعات سريعة"
+    },
+    "tier2_lateral": {
+      "id": "lateral",
+      "title": "النوع الثاني: الاستهداف المتقاطع والبديل (Lateral & Lifestyle)",
+      "adSetName": "AdSet 02 - Problem & Lifestyle Overlap [Cold]",
+      "badge": "أقل تكلفة وأوسع انتشار 💡",
+      "badgeColor": "#10b981",
+      "description": "استهداف ذكي يعتمد على زاوية المشكلة ونمط الحياة والمناسبات، للهروب من منافسة المزادات وخفض الـ CPA بنسبة 40%.",
+      "ageRange": "22 - 50 سنة",
+      "gender": "محدد حسب نمط الحياة",
+      "locations": ["المحافظات الرئيسية كاملة"],
+      "radiusOrPinDrop": "تغطية واسعة لكافة المحافظات ذات القوة الاستهلاكية",
+      "coreInterests": ["اهتمامات متقاطعة سرية تعبر عن المشكلة"],
+      "metaExactKeywords": ["English Lateral Interest 1", "English Lateral 2"],
+      "behaviors": ["المستخدمون الأكثر تفاعلاً مع محتوى الفيديو القصير"],
+      "exclusions": ["أصحاب الوظائف غير المؤهلة للشراء"],
+      "placements": ["Instagram Reels (9:16)", "TikTok For You"],
+      "bestCreativeFormat": "فيديو ريلز يبدأ بهوك عاطفي أو بصري صادم يلمس المشكلة مباشرة",
+      "budgetSharePercent": 35,
+      "dailyBudgetShareEGP": 175,
+      "proSecret": "كيف يهرب هذا الجمهور من مزادات المنافسين ويقلل تكلفة الرسالة/الطلب"
+    },
+    "tier3_behavioral": {
+      "id": "behavioral",
+      "title": "النوع الثالث: الاستهداف السلوكي والقوة الشرائية الفائقة (Affluent & High-Ticket)",
+      "adSetName": "AdSet 03 - Affluent Buyers & High Behaviors [Class A/B]",
+      "badge": "فلترة عملاء Class A 💎",
+      "badgeColor": "#fbbf24",
+      "description": "استهداف الطبقة الراقية والعملاء الأكثر قدرة على الدفع لضمان جودة الأوردرات وانعدام الإلغاءات.",
+      "ageRange": "28 - 58 سنة",
+      "gender": "الكل",
+      "locations": ["الأحياء الراقية والكمبوندات"],
+      "radiusOrPinDrop": "Pin Drop 3km - 6km محيط الكمبوندات والمناطق الأكثر ثراءً",
+      "coreInterests": ["اهتمامات الرفاهية والماركات"],
+      "metaExactKeywords": ["Luxury lifestyle", "Frequent International Travelers", "High-value goods"],
+      "behaviors": ["مستخدمو هواتف Apple iPhone الحديثة", "المسافرون الدوليون المتكررون"],
+      "exclusions": ["المسوقون والمطورون والمصممون", "الباحثون عن عروض مجانية"],
+      "placements": ["Instagram Feed & Stories High-Resolution"],
+      "bestCreativeFormat": "تصوير فيديو سينمائي فخم أو تصاميم براندينج راقية تبرز الفخامة والضمان والجودة",
+      "budgetSharePercent": 25,
+      "dailyBudgetShareEGP": 125,
+      "proSecret": "سر إقناع عميل الطبقة الراقية دون الحديث عن الخصومات أو التوفير"
+    },
+    "budgetTestingMatrix": {
+      "rule72Hours": "قاعدة الـ 72 ساعة لاختبار المجموعات الثلاث دون تغيير",
+      "scalingTrigger": "معيار المجموعة الفائزة التي يجب زيادة ميزانيتها",
+      "killingTrigger": "معيار المجموعة الضعيفة التي يجب إيقافها فوراً"
+    }
   },
   "budgetFunnelAllocation": {
     "coldTestingPercent": 70,
@@ -677,6 +788,9 @@ ${JSON.stringify(payload.specifics, null, 2)}
         const jsonSub = cleaned.substring(firstBrace, lastBrace + 1);
         const parsed = JSON.parse(jsonSub) as GeneratedGeminiCampaign;
         parsed.isLiveGemini = true;
+        if (!parsed.targetingSuite || !parsed.targetingSuite.tier1_direct) {
+          parsed.targetingSuite = buildTargetingSuiteFallback(payload, parsed.targeting);
+        }
         return parsed;
       }
     } catch (err: any) {
@@ -684,6 +798,158 @@ ${JSON.stringify(payload.specifics, null, 2)}
     }
   }
   return buildIntelligentFallbackCampaign(payload);
+}
+
+/**
+ * Builds 3 ultra-precise targeting tiers based on product specifics, pain points & buyer personas
+ */
+export function buildTargetingSuiteFallback(
+  payload: BusinessConsultationPayload,
+  baseTargeting?: Partial<GeneratedGeminiCampaign['targeting']>
+): AdvancedTargetingSuite {
+  const {
+    businessType,
+    productOrServiceName,
+    sellingPrice,
+    dailyBudget,
+    country,
+    locationScope,
+    targetGender,
+    painPoint,
+    pricePoint,
+  } = payload;
+
+  const bLower = (businessType || '').toLowerCase();
+  const isHighTicket = bLower.includes('realestate') || bLower.includes('عقار') || bLower.includes('مقاولات') || sellingPrice > 50000 || pricePoint === 'luxury';
+  const isMedical = bLower.includes('medical') || bLower.includes('طب') || bLower.includes('عياد') || bLower.includes('دكتور');
+  const isEcommerce = bLower.includes('ecommerce') || bLower.includes('متجر') || bLower.includes('ملابس') || bLower.includes('ساعات') || bLower.includes('منتج');
+  const isFood = bLower.includes('food') || bLower.includes('مطعم') || bLower.includes('كافيه') || bLower.includes('أكل');
+
+  const daily = Math.max(dailyBudget || 300, 100);
+  const tier1Daily = Math.round(daily * 0.4);
+  const tier2Daily = Math.round(daily * 0.35);
+  const tier3Daily = daily - tier1Daily - tier2Daily;
+
+  const genderLabel = targetGender === 'women' ? 'نساء فقط (Women)' : targetGender === 'men' ? 'رجال فقط (Men)' : 'رجال ونساء (All)';
+  const directInterests = baseTargeting?.interests && baseTargeting.interests.length > 0
+    ? baseTargeting.interests
+    : [
+        productOrServiceName,
+        isMedical ? 'عيادات الأسنان والطب التجميلي' : isEcommerce ? 'التسوق والشراء أونلاين' : isFood ? 'المطاعم وتوصيل الوجبات' : 'الخدمات المتخصصة',
+        'العلامات التجارية الموثوقة والمنتجات الأصلية',
+      ];
+
+  const lateralInterests = baseTargeting?.lateralInterests && baseTargeting.lateralInterests.length > 0
+    ? baseTargeting.lateralInterests
+    : [
+        `حل مشكلة ${painPoint ? painPoint.slice(0, 30) : 'توفير الوقت والمال'}`,
+        isMedical ? 'العناية بالابتسامة وصحة الأسنان والمظهر الجذاب' : isEcommerce ? 'عشاق الموضة والعروض الخاصة وتخفيضات المواسم' : 'تحسين نمط الحياة والراحة النفسية',
+        'الأشخاص المقبلين على مناسبات هامة وزواج وتغيير وظيفي',
+      ];
+
+  const behaviors = baseTargeting?.behaviors && baseTargeting.behaviors.length > 0
+    ? baseTargeting.behaviors
+    : [
+        'المتسوقون المتفاعلون (Engaged Shoppers)',
+        'مستخدمو الهواتف الذكية الحديثة بنظام iOS و Android',
+      ];
+
+  const tier1Age = isHighTicket ? '30 - 58 سنة' : isMedical ? '24 - 55 سنة' : '20 - 48 سنة';
+  const tier2Age = isHighTicket ? '28 - 55 سنة' : '22 - 50 سنة';
+  const tier3Age = '28 - 62 سنة';
+
+  return {
+    tier1_direct: {
+      id: 'direct',
+      title: 'النوع الأول: الاستهداف المباشر الدقيق (Direct Core Niche)',
+      adSetName: `AdSet 01 - ${productOrServiceName.slice(0, 20)} Direct [Cold]`,
+      badge: 'طلب جاهز ومباشر 🎯',
+      badgeColor: '#38bdf8',
+      description: `استهداف العملاء الذين يبحثون صراحة وبشكل مباشر عن [${productOrServiceName}] ويقارنون بين الخيارات بالسوق.`,
+      ageRange: tier1Age,
+      gender: genderLabel,
+      locations: [country, locationScope === 'radius_5_10km' ? 'محيط 5-10 كم حول المقر' : 'المدن والمحافظات الأكثر طلباً'],
+      radiusOrPinDrop: locationScope === 'radius_5_10km' ? 'Pin Drop 5km حول المقر الرئيسي' : 'المدن والمحافظات ذات الكثافة والطلب العالي',
+      coreInterests: directInterests,
+      metaExactKeywords: [
+        isMedical ? 'Dentistry, Dental implant, Cosmetic dentistry, Teeth whitening' : isEcommerce ? 'Online shopping, E-commerce, Retail' : `${productOrServiceName}, Professional services`,
+        'High-intent buyers, Consumer purchase',
+      ],
+      behaviors: behaviors,
+      exclusions: ['المسوقون الرقميون (Digital Marketers)', 'المنافسون ومسؤولو الصفحات المماثلة'],
+      placements: ['Instagram Feed & Explore', 'Facebook Feed', 'TikTok Feed'],
+      bestCreativeFormat: 'إعلان العرض المباشر وصور/فيديو توضح ميزات المنتج والنتيجة والضمان فوراً',
+      budgetSharePercent: 40,
+      dailyBudgetShareEGP: tier1Daily,
+      proSecret: 'ضع كل الاهتمامات المباشرة في هذه المجموعة دون حشو مضلل، ولا تخلط معها اهتمامات متباعدة لتمكين خوارزمية ميتا من جلب العملاء الجاهزين للشراء فوراً.',
+    },
+    tier2_lateral: {
+      id: 'lateral',
+      title: 'النوع الثاني: الاستهداف المتقاطع والبديل (Lateral & Lifestyle)',
+      adSetName: `AdSet 02 - Problem & Lifestyle Overlap [Cold]`,
+      badge: 'أقل تكلفة وأوسع انتشار 💡',
+      badgeColor: '#10b981',
+      description: `استهداف ذكي يعتمد على زاوية المشكلة (${painPoint || 'التكلفة والجودة'}) ونمط الحياة والمناسبات، للهروب من منافسة المزادات وخفض الـ CPA بنسبة 40%.`,
+      ageRange: tier2Age,
+      gender: genderLabel,
+      locations: [country],
+      radiusOrPinDrop: 'تغطية واسعة لكافة المحافظات ذات القوة الاستهلاكية',
+      coreInterests: lateralInterests,
+      metaExactKeywords: [
+        'Self-care, Personal development, Lifestyle, Event planning',
+        'Weddings, Career advancement, Quality of life',
+      ],
+      behaviors: ['الأشخاص الذين يفضلون السلع ذات القيمة المضافة', 'المستخدمون الأكثر تفاعلاً مع محتوى الفيديو القصير'],
+      exclusions: ['أصحاب الوظائف غير المؤهلة للشراء', 'الحسابات غير المتفاعلة'],
+      placements: ['Instagram Reels (9:16)', 'TikTok For You (Vertical Video)'],
+      bestCreativeFormat: 'فيديو ريلز عمودي يبدأ بهوك عاطفي أو بصري صادم يلمس المشكلة مباشرة ويقترح الحل بشكل طبيعي',
+      budgetSharePercent: 35,
+      dailyBudgetShareEGP: tier2Daily,
+      proSecret: 'هذا النوع هو سر التوسع الرابح (Scaling)؛ الجمهور هنا كبير جداً والشركات المنافسة لا تستهدفه بالاسم، فتكون تكلفة الوصول أرخص بـ 40% وتزيد الأرباح.',
+    },
+    tier3_behavioral: {
+      id: 'behavioral',
+      title: 'النوع الثالث: الاستهداف السلوكي والقوة الشرائية الفائقة (Affluent & High-Ticket)',
+      adSetName: `AdSet 03 - Affluent Buyers & High Behaviors [Class A/B]`,
+      badge: 'فلترة عملاء Class A 💎',
+      badgeColor: '#fbbf24',
+      description: `استهداف الطبقة الراقية والعملاء الأكثر قدرة على الدفع عبر سلوكيات الأجهزة الفاخرة وعادات السفر لضمان جودة الطلبات وانعدام الإلغاءات.`,
+      ageRange: tier3Age,
+      gender: genderLabel,
+      locations: [
+        country.includes('مصر') ? 'القاهرة الجديدة، التجمع الخامس، الشيخ زايد، المعادي، المهندسين، الإسكندرية' : `${country} (المناطق والأحياء الراقية)`,
+      ],
+      radiusOrPinDrop: 'Pin Drop 3km - 6km محيط الكمبوندات والمناطق الأكثر ثراءً',
+      coreInterests: [
+        'Luxury lifestyle & High-end brands',
+        'Real estate investment & Business administration',
+        'Frequent international travelers & First-class vacations',
+      ],
+      metaExactKeywords: [
+        'Luxury goods, Frequent International Travelers, High net worth individuals',
+        'Apple iPhone 15 Pro, Apple iPhone 16 Pro Max users',
+      ],
+      behaviors: [
+        'مستخدمو هواتف iPhone الحديثة وأحدث أجهزة Flagship Android',
+        'المسافرون الدوليون المتكررون (Frequent International Travelers)',
+        'مدراء صفحات الأنشطة التجارية ورواد الأعمال (Facebook Page Admins)',
+      ],
+      exclusions: [
+        'المسوقون والمطورون والمصممون',
+        'الباحثون عن عروض مجانية أو خصومات شعبية (Bargain hunters)',
+      ],
+      placements: ['Instagram Feed & Stories High-Resolution', 'High-end Mobile Network placements'],
+      bestCreativeFormat: 'تصوير فيديو سينمائي فخم أو تصاميم براندينج راقية تبرز الفخامة والضمان والجودة دون ذكر كلمة رخيص أو خصم مبالغ فيه',
+      budgetSharePercent: 25,
+      dailyBudgetShareEGP: tier3Daily,
+      proSecret: 'للفئة A/B: لا تتحدث أبداً عن الخصومات أو التوفير! تحدث فقط عن "التميز، الحصرية، راحة البال، وتوفير المجهود والوقت". العميل هنا يدفع مقابل الجودة الفائقة والاطمئنان.',
+    },
+    budgetTestingMatrix: {
+      rule72Hours: `قاعدة الـ 72 ساعة الذهبية: قسّم الميزانية اليومية (${daily} ج.م) بين المجموعات الثلاث بنسبة (40% للمباشر، 35% للمتقاطع، 25% للقوة الشرائية). لا تلمس الإعلانات خلال أول 72 ساعة لتمكين خوارزمية التعلم.`,
+      scalingTrigger: `مؤشر التكبير (Scaling): المجموعة الإعلانية التي تحقق أقل تكلفة رسالة/مبيعة وأعلى ROAS بعد 72 ساعة قم بزيادة ميزانيتها بنسبة 20% كل يومين (Vertical Scaling).`,
+      killingTrigger: `مؤشر الإيقاف (Killing): أي مجموعة تتجاوز تكلفة الرسالة فيها ضعف المتوسط المستهدف أو تحقق Frequency > 2.2 دون مبيعات أوقفها فوراً وانقل ميزانيتها للمجموعة الرابحة.`,
+    },
+  };
 }
 
 /**
@@ -974,6 +1240,23 @@ function buildIntelligentFallbackCampaign(payload: BusinessConsultationPayload):
         placements: ['Instagram Reels (9:16)', 'Facebook Reels', 'TikTok Feed'],
         industrySecret: 'سر خوارزمية 2026: خوارزميات ميتا وتيك توك أصبحت ذكاء اصطناعي يفهم محتوى الفيديو المسموع والمكتوب (Creative-Led Targeting)؛ لذلك جودة وقوة أول 3 ثوانٍ في الفيديو هي التي تحدد نوعية العميل الذي يصلك بنسبة 80%!',
       },
+      targetingSuite: buildTargetingSuiteFallback(payload, {
+        interests: [
+          `${productOrServiceName}`,
+          `${bLower.includes('medical') ? 'الصحة والعناية' : bLower.includes('ecommerce') ? 'تسوق أونلاين' : 'خدمات وأعمال'}`,
+          'الجودة والماركات الموثوقة',
+        ],
+        lateralInterests: [
+          `حل مشكلة ${painPoint ? painPoint.slice(0, 25) : 'توفير الوقت والمال'}`,
+          'المهتمين بالعروض والقيمة العالية',
+          'المشترون المتفاعلون (Engaged Shoppers)',
+          ...lateralInterests,
+        ],
+        behaviors: [
+          pricePoint === 'luxury' ? 'أصحاب الهواتف الحديثة (iPhone 14/15/16 Pro)' : 'المتسوقون المنفقون أونلاين',
+          'المستخدمون المتفاعلون عبر الهاتف المحمول',
+        ],
+      }),
       budgetFunnelAllocation: {
         coldTestingPercent: coldTestingPercent,
         coldTestingDaily: coldTestingDaily,

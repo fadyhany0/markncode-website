@@ -14,7 +14,6 @@ import {
   Snackbar,
   CircularProgress,
   Stack,
-  Divider,
   Slider,
   RadioGroup,
   FormControlLabel,
@@ -86,6 +85,9 @@ import {
   askGeminiFollowUp,
   detectGibberish,
   GeneratedGeminiCampaign,
+  TargetingTier,
+  AdvancedTargetingSuite,
+  buildTargetingSuiteFallback,
   PricePoint,
   LocationScope,
   CustomerType,
@@ -614,6 +616,7 @@ const CreateYourAd: React.FC = () => {
   const [analysisStatusIndex, setAnalysisStatusIndex] = useState(0);
   const [auditResult, setAuditResult] = useState<GeneratedGeminiCampaign | null>(null);
   const [activeResultTab, setActiveResultTab] = useState(0);
+  const [targetingSubTab, setTargetingSubTab] = useState(0);
   const [copiedSnackbar, setCopiedSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -875,14 +878,39 @@ ${auditResult.objectiveAdvisor?.verdictReason || ''}
 ${auditResult.correctedGrandSlamOffer || ''}
 
 -----------------------------------------------------
-🎯 الاستهداف في مدير إعلانات ميتا (Meta Ads Manager):
+🎯 مصفوفة الاستهداف المتقدمة (3 أنواع استهداف دقيقة):
 -----------------------------------------------------
-- الاستراتيجية: ${auditResult.targeting?.strategyType || ''}
-- الفئة العمرية: ${auditResult.targeting?.ageRange || ''}
-- الاهتمامات المباشرة: ${auditResult.targeting?.interests?.join(', ') || ''}
-- الاهتمامات المتقاطعة (Lateral Interests): ${auditResult.targeting?.lateralInterests?.join(', ') || ''}
-- السلوكيات الشرائية: ${auditResult.targeting?.behaviors?.join(', ') || ''}
-- سر الميديا باير: ${auditResult.targeting?.industrySecret || ''}
+1️⃣ النوع الأول: الاستهداف المباشر الدقيق (Direct Core Niche):
+- اسم المجموعة (AdSet Name): ${auditResult.targetingSuite?.tier1_direct?.adSetName || 'AdSet 01 - Direct'}
+- الميزانية المخصصة: ${auditResult.targetingSuite?.tier1_direct?.budgetSharePercent || 40}% (${auditResult.targetingSuite?.tier1_direct?.dailyBudgetShareEGP || Math.round(Number(dailyCalculatedBudget) * 0.4)} ج.م/يوم)
+- الفئة العمرية والجنس: ${auditResult.targetingSuite?.tier1_direct?.ageRange || auditResult.targeting?.ageRange} | ${auditResult.targetingSuite?.tier1_direct?.gender || auditResult.targeting?.gender}
+- المواقع والـ Pin Drop: ${auditResult.targetingSuite?.tier1_direct?.locations?.join(' - ') || auditResult.targeting?.locations} (${auditResult.targetingSuite?.tier1_direct?.radiusOrPinDrop || ''})
+- الاهتمامات المباشرة: ${auditResult.targetingSuite?.tier1_direct?.coreInterests?.join(', ') || auditResult.targeting?.interests?.join(', ')}
+- الكلمات المفتاحية في Meta: ${auditResult.targetingSuite?.tier1_direct?.metaExactKeywords?.join(' | ') || ''}
+- السلوكيات: ${auditResult.targetingSuite?.tier1_direct?.behaviors?.join(', ') || auditResult.targeting?.behaviors?.join(', ')}
+- الاستثناءات: ${auditResult.targetingSuite?.tier1_direct?.exclusions?.join(', ') || auditResult.targeting?.exclusions?.join(', ')}
+- سر الميديا باير: ${auditResult.targetingSuite?.tier1_direct?.proSecret || auditResult.targeting?.industrySecret}
+
+2️⃣ النوع الثاني: الاستهداف المتقاطع والبديل (Lateral & Lifestyle):
+- اسم المجموعة (AdSet Name): ${auditResult.targetingSuite?.tier2_lateral?.adSetName || 'AdSet 02 - Lateral'}
+- الميزانية المخصصة: ${auditResult.targetingSuite?.tier2_lateral?.budgetSharePercent || 35}% (${auditResult.targetingSuite?.tier2_lateral?.dailyBudgetShareEGP || Math.round(Number(dailyCalculatedBudget) * 0.35)} ج.م/يوم)
+- الفئة العمرية والجنس: ${auditResult.targetingSuite?.tier2_lateral?.ageRange || auditResult.targeting?.ageRange} | ${auditResult.targetingSuite?.tier2_lateral?.gender || auditResult.targeting?.gender}
+- الاهتمامات المتقاطعة العميقة: ${auditResult.targetingSuite?.tier2_lateral?.coreInterests?.join(', ') || auditResult.targeting?.lateralInterests?.join(', ')}
+- الكلمات المفتاحية في Meta: ${auditResult.targetingSuite?.tier2_lateral?.metaExactKeywords?.join(' | ') || ''}
+- سر خفض تكلفة الإعلان: ${auditResult.targetingSuite?.tier2_lateral?.proSecret || ''}
+
+3️⃣ النوع الثالث: الاستهداف السلوكي والقوة الشرائية الفائقة (Affluent Class A/B):
+- اسم المجموعة (AdSet Name): ${auditResult.targetingSuite?.tier3_behavioral?.adSetName || 'AdSet 03 - Affluent'}
+- الميزانية المخصصة: ${auditResult.targetingSuite?.tier3_behavioral?.budgetSharePercent || 25}% (${auditResult.targetingSuite?.tier3_behavioral?.dailyBudgetShareEGP || Math.round(Number(dailyCalculatedBudget) * 0.25)} ج.م/يوم)
+- الفئة العمرية والجنس: ${auditResult.targetingSuite?.tier3_behavioral?.ageRange || auditResult.targeting?.ageRange} | ${auditResult.targetingSuite?.tier3_behavioral?.gender || auditResult.targeting?.gender}
+- سلوكيات الأجهزة والإنفاق: ${auditResult.targetingSuite?.tier3_behavioral?.behaviors?.join(', ') || ''}
+- الاستثناءات الصارمة: ${auditResult.targetingSuite?.tier3_behavioral?.exclusions?.join(', ') || ''}
+- سر إقناع عميل الطبقة الراقية: ${auditResult.targetingSuite?.tier3_behavioral?.proSecret || ''}
+
+📊 مصفوفة الـ 72 ساعة للميزانية:
+- ${auditResult.targetingSuite?.budgetTestingMatrix?.rule72Hours || 'قسّم الميزانية بين الـ 3 مجموعات ولا تعدل شيئاً أول 72 ساعة.'}
+- مؤشر التكبير: ${auditResult.targetingSuite?.budgetTestingMatrix?.scalingTrigger || 'ضاعف ميزانية المجموعة صاحبة أقل تكلفة رسالة.'}
+- مؤشر الإيقاف: ${auditResult.targetingSuite?.budgetTestingMatrix?.killingTrigger || 'أوقف المجموعة الضعيفة فوراً ووفر فلوسك.'}
 
 -----------------------------------------------------
 ⚖️ زوايا اختبار أ/ب (A/B Testing Angles):
@@ -1819,6 +1847,491 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
 
         {/* Technical SOS help banner */}
         {renderTechnicalSosBanner('اختيار وتفعيل الهدف الإعلاني وربط حملة الرسائل أو المبيعات')}
+      </Stack>
+    );
+  };
+
+  const renderAdvancedThreeTierTargeting = () => {
+    if (!auditResult) return null;
+
+    const suite: AdvancedTargetingSuite =
+      auditResult.targetingSuite ||
+      buildTargetingSuiteFallback(
+        {
+          businessType: businessField.trim() || 'نشاط تجاري عام',
+          businessTypeName: businessField.trim() || 'نشاط تجاري عام',
+          productOrServiceName: productName.trim() || businessField.trim() || 'منتج أو خدمة تجارية',
+          sellingPrice: Number(sellingPrice) || 1000,
+          costOrMargin: Number(profitMargin) || 400,
+          dailyBudget: dailyCalculatedBudget,
+          totalBudget: Number(totalBudget) || 5000,
+          campaignDays: Number(campaignDays) || 7,
+          platform,
+          country,
+          pricePoint,
+          painPoint: painPoint.trim() || 'توفير المال والوقت والحصول على أعلى جودة',
+          locationScope,
+          customerType,
+          userDesiredObjective,
+          websiteAndPixelStatus,
+          creativeAssetFormat,
+          salesClosingMethod,
+          uniqueSellingProposition: uniqueSellingProposition.trim(),
+          targetGender,
+          specifics: {
+            businessField: businessField.trim(),
+            productName: productName.trim(),
+            customGuarantee: customGuarantee.trim(),
+          },
+          responseSpeed: 'رد سريع ومتابعة منتظمة',
+          hasNoOffer,
+          offerType: hasNoOffer ? 'لا يوجد عروض' : customOfferText.trim() || 'عرض خاص',
+          customOfferText,
+          industryGuaranteeType: customGuarantee.trim() || 'ضمان معتمد وبناء طمأنينة كاملة للعميل',
+          creativeAssetType: 'فيديو ريلز عمودي 9:16 مقسم بالثواني',
+        },
+        auditResult.targeting
+      );
+
+    const activeTier: TargetingTier =
+      targetingSubTab === 0
+        ? suite.tier1_direct
+        : targetingSubTab === 1
+        ? suite.tier2_lateral
+        : suite.tier3_behavioral;
+
+    const handleCopyTierConfig = (tier: TargetingTier) => {
+      const textToCopy = `
+🎯 ${tier.title} [${tier.badge}]
+- اسم المجموعة في مدير الإعلانات (AdSet Name): ${tier.adSetName}
+- حصة الميزانية اليومية: ${tier.budgetSharePercent}% (${tier.dailyBudgetShareEGP} ج.م / يومياً)
+- الفئة العمرية: ${tier.ageRange}
+- النوع / الجنس: ${tier.gender}
+- النطاق والمواقع: ${tier.locations.join(' - ')} (${tier.radiusOrPinDrop})
+- الاهتمامات المباشرة: ${tier.coreInterests.join(', ')}
+- الكلمات المفتاحية المعتمدة في Meta: ${tier.metaExactKeywords.join(' | ')}
+- السلوكيات الرقمية: ${tier.behaviors.join(', ')}
+- الاستثناءات الصارمة: ${tier.exclusions.join(', ')}
+- مواضع الظهور: ${tier.placements.join(', ')}
+- أفضل صيغة إعلان: ${tier.bestCreativeFormat}
+- سر خبير الميديا باير: ${tier.proSecret}
+      `.trim();
+
+      navigator.clipboard.writeText(textToCopy);
+      setSnackbarMessage(`تم نسخ بيانات "${tier.title}" بنجاح! جاهزة للصق في مدير إعلانات ميتا 📋`);
+      setCopiedSnackbar(true);
+    };
+
+    const handleCopySingleKeyword = (keyword: string) => {
+      navigator.clipboard.writeText(keyword);
+      setSnackbarMessage(`تم نسخ: "${keyword}" 📋`);
+      setCopiedSnackbar(true);
+    };
+
+    return (
+      <Stack spacing={3}>
+        {/* Header Info */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+          <Box>
+            <Typography variant="subtitle1" sx={{ color: '#38bdf8', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TargetIcon sx={{ fontSize: 22 }} />
+              مصفوفة الاستهداف المتقدمة في مدير إعلانات ميتا (3 مجموعات إعلانية متمايزة):
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+              تم تصميم 3 أنواع استهداف دقيقة ومفصلة لاختبارها معاً في مدير الإعلانات (AdSets) للوصول لأعلى معدل تحويل وأقل سعر رسالة/مبيعة.
+            </Typography>
+          </Box>
+          <Chip
+            size="small"
+            label="مصفوفة 3-AdSets متكاملة"
+            sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}
+          />
+        </Box>
+
+        {/* 4-way Segmented Control / Tabs */}
+        <Grid container spacing={1.5}>
+          {/* Tier 1: Direct */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              onClick={() => setTargetingSubTab(0)}
+              sx={{
+                p: 2,
+                cursor: 'pointer',
+                borderRadius: '14px',
+                bgcolor: targetingSubTab === 0 ? 'rgba(56, 189, 248, 0.16)' : 'rgba(15, 23, 42, 0.65)',
+                border: targetingSubTab === 0 ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                boxShadow: targetingSubTab === 0 ? '0 0 18px rgba(56, 189, 248, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                '&:hover': { borderColor: '#38bdf8' },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+                <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800 }}>النوع 1: مباشر</Typography>
+                <Chip size="small" label={`${suite.tier1_direct.budgetSharePercent}% ميزانية`} sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontWeight: 800 }} />
+              </Box>
+              <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 0.5 }}>🎯 استهداف صريح بالاسم</Typography>
+              <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.72rem', display: 'block' }}>طلب جاهز ومبيعات فورية</Typography>
+            </Card>
+          </Grid>
+
+          {/* Tier 2: Lateral */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              onClick={() => setTargetingSubTab(1)}
+              sx={{
+                p: 2,
+                cursor: 'pointer',
+                borderRadius: '14px',
+                bgcolor: targetingSubTab === 1 ? 'rgba(16, 185, 129, 0.16)' : 'rgba(15, 23, 42, 0.65)',
+                border: targetingSubTab === 1 ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                boxShadow: targetingSubTab === 1 ? '0 0 18px rgba(16, 185, 129, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                '&:hover': { borderColor: '#10b981' },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+                <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 800 }}>النوع 2: متقاطع</Typography>
+                <Chip size="small" label={`${suite.tier2_lateral.budgetSharePercent}% ميزانية`} sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', fontWeight: 800 }} />
+              </Box>
+              <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 0.5 }}>💡 استهداف المشكلة والنمط</Typography>
+              <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.72rem', display: 'block' }}>أرخص 40% وأوسع انتشار</Typography>
+            </Card>
+          </Grid>
+
+          {/* Tier 3: Behavioral */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              onClick={() => setTargetingSubTab(2)}
+              sx={{
+                p: 2,
+                cursor: 'pointer',
+                borderRadius: '14px',
+                bgcolor: targetingSubTab === 2 ? 'rgba(245, 158, 11, 0.16)' : 'rgba(15, 23, 42, 0.65)',
+                border: targetingSubTab === 2 ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.08)',
+                boxShadow: targetingSubTab === 2 ? '0 0 18px rgba(245, 158, 11, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                '&:hover': { borderColor: '#fbbf24' },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+                <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 800 }}>النوع 3: سلوكي</Typography>
+                <Chip size="small" label={`${suite.tier3_behavioral.budgetSharePercent}% ميزانية`} sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', fontWeight: 800 }} />
+              </Box>
+              <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 0.5 }}>💎 القوة الشرائية الفائقة</Typography>
+              <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.72rem', display: 'block' }}>عملاء Class A بدون فصال</Typography>
+            </Card>
+          </Grid>
+
+          {/* Tier 4: Matrix */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card
+              onClick={() => setTargetingSubTab(3)}
+              sx={{
+                p: 2,
+                cursor: 'pointer',
+                borderRadius: '14px',
+                bgcolor: targetingSubTab === 3 ? 'rgba(168, 85, 247, 0.16)' : 'rgba(15, 23, 42, 0.65)',
+                border: targetingSubTab === 3 ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.08)',
+                boxShadow: targetingSubTab === 3 ? '0 0 18px rgba(168, 85, 247, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
+                '&:hover': { borderColor: '#a855f7' },
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.8 }}>
+                <Typography variant="caption" sx={{ color: '#c084fc', fontWeight: 800 }}>مصفوفة الـ 72 ساعة</Typography>
+                <Chip size="small" label="خطة الميزانية" sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', fontWeight: 800 }} />
+              </Box>
+              <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 0.5 }}>⚖️ متى تضاعف ومتى توقف؟</Typography>
+              <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.72rem', display: 'block' }}>قواعد الميديا باير المحترف</Typography>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* DETAILS FOR ACTIVE TIER (0, 1, 2) */}
+        {targetingSubTab < 3 && (
+          <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: `1px solid ${activeTier.badgeColor || '#38bdf8'}40`, borderRadius: '18px', p: { xs: 2.5, md: 3.5 } }}>
+            <Stack spacing={2.5}>
+              {/* Active Tier Header */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5, pb: 2, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                    <Typography variant="h6" sx={{ color: '#ffffff', fontWeight: 900 }}>
+                      {activeTier.title}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={activeTier.badge}
+                      sx={{ bgcolor: `${activeTier.badgeColor || '#38bdf8'}25`, color: activeTier.badgeColor || '#38bdf8', fontWeight: 800 }}
+                    />
+                  </Box>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>
+                    {activeTier.description}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800, mt: 0.5, display: 'inline-block' }}>
+                    اسم المجموعة المقترح في مدير الإعلانات: <code style={{ color: '#e2e8f0', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px' }}>{activeTier.adSetName}</code>
+                  </Typography>
+                </Box>
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleCopyTierConfig(activeTier)}
+                  startIcon={<CopyIcon sx={{ fontSize: 16 }} />}
+                  sx={{
+                    borderColor: `${activeTier.badgeColor || '#38bdf8'}60`,
+                    color: activeTier.badgeColor || '#38bdf8',
+                    fontWeight: 800,
+                    borderRadius: '8px',
+                    '&:hover': { bgcolor: `${activeTier.badgeColor || '#38bdf8'}15` },
+                  }}
+                >
+                  نسخ إعدادات المجموعة كاملة
+                </Button>
+              </Box>
+
+              {/* 4-Grid Quick Specs */}
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5 }}>👥 الفئة العمرية:</Typography>
+                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 800 }}>{activeTier.ageRange}</Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5 }}>⚧️ النوع / الجنس:</Typography>
+                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 800 }}>{activeTier.gender}</Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={3}>
+                  <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5 }}>📍 النطاق والمواقع:</Typography>
+                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 800 }}>{activeTier.radiusOrPinDrop}</Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={3}>
+                  <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5 }}>💰 الميزانية اليومية المقترحة:</Typography>
+                    <Typography variant="body2" sx={{ color: activeTier.badgeColor || '#38bdf8', fontWeight: 900 }}>
+                      {activeTier.dailyBudgetShareEGP} ج.م / يوم ({activeTier.budgetSharePercent}%)
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Exact Meta Interests & Keywords */}
+              <Box sx={{ p: 2.5, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ color: '#f8fafc', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TargetIcon sx={{ fontSize: 18, color: activeTier.badgeColor || '#38bdf8' }} />
+                    الاهتمامات المباشرة والكلمات المعتمدة في Meta Ads Manager:
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                    (انقر على أي اهتمام لنسخه فوراً ولصقه في مدير الإعلانات 📋)
+                  </Typography>
+                </Box>
+
+                {/* Arabic Core Interests */}
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                  {activeTier.coreInterests.map((interest, idx) => (
+                    <Chip
+                      key={idx}
+                      label={interest}
+                      onClick={() => handleCopySingleKeyword(interest)}
+                      icon={<CopyIcon sx={{ fontSize: 14 }} />}
+                      sx={{
+                        bgcolor: 'rgba(56, 189, 248, 0.12)',
+                        color: '#38bdf8',
+                        fontWeight: 700,
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: 'rgba(56, 189, 248, 0.25)', borderColor: '#38bdf8' },
+                      }}
+                    />
+                  ))}
+                </Box>
+
+                {/* Meta Exact Keywords (English) */}
+                <Typography variant="caption" sx={{ color: '#a78bfa', fontWeight: 800, display: 'block', mb: 1 }}>
+                  🔤 الكلمات المفتاحية الإنجليزية الدقيقة (Meta Exact Interests & Keywords):
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {activeTier.metaExactKeywords.map((kw, idx) => (
+                    <Chip
+                      key={idx}
+                      label={kw}
+                      onClick={() => handleCopySingleKeyword(kw)}
+                      icon={<CopyIcon sx={{ fontSize: 14 }} />}
+                      sx={{
+                        bgcolor: 'rgba(167, 139, 250, 0.12)',
+                        color: '#c4b5fd',
+                        fontWeight: 700,
+                        border: '1px solid rgba(167, 139, 250, 0.3)',
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: 'rgba(167, 139, 250, 0.25)', borderColor: '#a78bfa' },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Target Behaviors */}
+              <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 800, display: 'block', mb: 1 }}>
+                  ⚡ السلوكيات الشرائية والرقمية المعتمدة (Target Behaviors):
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {activeTier.behaviors.map((b, idx) => (
+                    <Chip
+                      key={idx}
+                      label={b}
+                      onClick={() => handleCopySingleKeyword(b)}
+                      icon={<CopyIcon sx={{ fontSize: 14 }} />}
+                      sx={{
+                        bgcolor: 'rgba(245, 158, 11, 0.15)',
+                        color: '#fbbf24',
+                        fontWeight: 700,
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: 'rgba(245, 158, 11, 0.25)' },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Strict Exclusions */}
+              <Box sx={{ p: 2, bgcolor: 'rgba(239, 68, 68, 0.05)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                <Typography variant="caption" sx={{ color: '#f87171', fontWeight: 800, display: 'block', mb: 1 }}>
+                  🚫 الاستثناءات الصارمة لمنع حرق الميزانية (Strict Exclusions):
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mb: 1 }}>
+                  ضع هذه الفئات في خانة "Exclude people who match" في مدير الإعلانات لتفادي صرف الميزانية على أشخاص غير مؤهلين:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {activeTier.exclusions.map((ex, idx) => (
+                    <Chip
+                      key={idx}
+                      label={`استبعاد: ${ex}`}
+                      onClick={() => handleCopySingleKeyword(ex)}
+                      sx={{
+                        bgcolor: 'rgba(239, 68, 68, 0.12)',
+                        color: '#fca5a5',
+                        fontWeight: 700,
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Best Creative Format */}
+              <Box sx={{ p: 2, bgcolor: 'rgba(56, 189, 248, 0.04)', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                  🎬 أفضل صيغة محتوى إعلاني لهذا الجمهور (Best Creative Angle):
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#e2e8f0', lineHeight: 1.6 }}>
+                  {activeTier.bestCreativeFormat}
+                </Typography>
+              </Box>
+
+              {/* Pro Secret */}
+              <Box sx={{ p: 2.5, bgcolor: 'rgba(245, 158, 11, 0.08)', borderRadius: '14px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                <Typography variant="subtitle2" sx={{ color: '#fbbf24', fontWeight: 800, mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IdeaIcon sx={{ fontSize: 18 }} />
+                  سر خبير الميديا باير لهذا الاستهداف (Pro Secret):
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#fef08a', lineHeight: 1.7, fontWeight: 500 }}>
+                  {activeTier.proSecret}
+                </Typography>
+              </Box>
+            </Stack>
+          </Card>
+        )}
+
+        {/* DETAILS FOR MATRIX TAB (3) */}
+        {targetingSubTab === 3 && (
+          <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(168, 85, 247, 0.35)', borderRadius: '18px', p: { xs: 2.5, md: 3.5 } }}>
+            <Stack spacing={3}>
+              <Box>
+                <Typography variant="h6" sx={{ color: '#c084fc', fontWeight: 900, mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CalculateIcon sx={{ fontSize: 22 }} />
+                  مصفوفة الـ 72 ساعة وخطة اختبار الـ 3 مجموعات إعلانية:
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                  كيف تدير الميزانية بين المجموعات الثلاث في مدير الإعلانات كالمحترفين لتفادي الخسائر وتكبير الأرباح:
+                </Typography>
+              </Box>
+
+              {/* 3-Card Summary Breakdown */}
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(56, 189, 248, 0.08)', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                    <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800, display: 'block', mb: 0.5 }}>المجموعة 01: المباشر</Typography>
+                    <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 1 }}>{suite.tier1_direct.adSetName}</Typography>
+                    <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mb: 1 }}>الحصة: {suite.tier1_direct.budgetSharePercent}% ({suite.tier1_direct.dailyBudgetShareEGP} ج.م/يوم)</Typography>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.75rem' }}>تبدأ فوراً بحصد العملاء الذين يبحثون بالاسم، وتعتبر أساس تدريب البيكسل على المشترين.</Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(16, 185, 129, 0.08)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                    <Typography variant="caption" sx={{ color: '#10b981', fontWeight: 800, display: 'block', mb: 0.5 }}>المجموعة 02: المتقاطع</Typography>
+                    <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 1 }}>{suite.tier2_lateral.adSetName}</Typography>
+                    <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mb: 1 }}>الحصة: {suite.tier2_lateral.budgetSharePercent}% ({suite.tier2_lateral.dailyBudgetShareEGP} ج.م/يوم)</Typography>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.75rem' }}>تفتح شريحة أوسع بنقرات أرخص، وهي المسؤولة عن التوسع (Scaling) وجلب عملاء جدد بتكلفة منخفضة.</Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(245, 158, 11, 0.08)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                    <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 800, display: 'block', mb: 0.5 }}>المجموعة 03: السلوكي</Typography>
+                    <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 800, mb: 1 }}>{suite.tier3_behavioral.adSetName}</Typography>
+                    <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mb: 1 }}>الحصة: {suite.tier3_behavioral.budgetSharePercent}% ({suite.tier3_behavioral.dailyBudgetShareEGP} ج.م/يوم)</Typography>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.75rem' }}>تفلتر عملاء الـ Class A/B، وتضمن أن طلباتك تأتي من أشخاص قادرين على الدفع الفوري دون فصال.</Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* 72 Hours Rule */}
+              <Box sx={{ p: 2.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '14px', borderRight: '4px solid #38bdf8' }}>
+                <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800, mb: 0.8 }}>
+                  ⏱️ القاعدة الأولى: ثبات الـ 72 ساعة دون أي تعديل:
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#e2e8f0', lineHeight: 1.7 }}>
+                  {suite.budgetTestingMatrix?.rule72Hours}
+                </Typography>
+              </Box>
+
+              {/* Scaling Rule */}
+              <Box sx={{ p: 2.5, bgcolor: 'rgba(16, 185, 129, 0.05)', borderRadius: '14px', borderRight: '4px solid #10b981' }}>
+                <Typography variant="subtitle2" sx={{ color: '#34d399', fontWeight: 800, mb: 0.8 }}>
+                  🚀 القاعدة الثانية: مؤشر التكبير ومضاعفة الميزانية (Scaling Trigger):
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#e2e8f0', lineHeight: 1.7 }}>
+                  {suite.budgetTestingMatrix?.scalingTrigger}
+                </Typography>
+              </Box>
+
+              {/* Killing Rule */}
+              <Box sx={{ p: 2.5, bgcolor: 'rgba(239, 68, 68, 0.05)', borderRadius: '14px', borderRight: '4px solid #ef4444' }}>
+                <Typography variant="subtitle2" sx={{ color: '#f87171', fontWeight: 800, mb: 0.8 }}>
+                  🛑 القاعدة الثالثة: مؤشر الإيقاف الحاسم وتوفير الميزانية (Killing Trigger):
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#e2e8f0', lineHeight: 1.7 }}>
+                  {suite.budgetTestingMatrix?.killingTrigger}
+                </Typography>
+              </Box>
+            </Stack>
+          </Card>
+        )}
+
+        {/* Technical SOS Banner */}
+        {renderTechnicalSosBanner('ضبط البيكسل وهندسة الـ 3 مجموعات إعلانية في مدير الإعلانات')}
       </Stack>
     );
   };
@@ -4386,7 +4899,7 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                   >
                     <Tab icon={<GuideIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="📍 منين تعمل إعلانك خطوة بخطوة" />
                     <Tab icon={<TargetIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="🎯 مستشار الهدف (Sales أم WhatsApp أم Leads)" />
-                    <Tab icon={<TuneIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="الاستهداف المتقاطع" />
+                    <Tab icon={<TuneIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="🎯 الاستهداف الذكي (3 أنواع)" />
                     <Tab icon={<CompareIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="اختبار أ/ب (A/B Test)" />
                     <Tab icon={<CalculateIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="حاسبة العائد والميزانية" />
                     <Tab icon={<PlayIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="سكريبت الريلز بالثواني" />
@@ -4402,90 +4915,8 @@ ${auditResult.abTestAngles?.angleB?.primaryText || ''}
                 {/* TAB 1: Campaign Objective Advisor (Sales vs Messages vs Leads) */}
                 {activeResultTab === 1 && renderCampaignObjectiveAdvisor()}
 
-                {/* TAB 2: Targeting & Lateral Interests */}
-                {activeResultTab === 2 && (
-                  <Stack spacing={2.5}>
-                    <Typography variant="subtitle2" sx={{ color: '#38bdf8', fontWeight: 800 }}>
-                      🎯 استهداف Ads Manager الذكي (الاهتمامات المباشرة والمتقاطعة والسلوكيات):
-                    </Typography>
-
-                    <Card sx={{ bgcolor: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '16px', p: 3 }}>
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                          <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800 }}>استراتيجية الحملة:</Typography>
-                          <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                            {auditResult.targeting?.strategyType}
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={6} sm={3}>
-                          <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800 }}>الفئة العمرية:</Typography>
-                          <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                            {auditResult.targeting?.ageRange}
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={6} sm={3}>
-                          <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800 }}>نوع العميل:</Typography>
-                          <Typography variant="body2" sx={{ color: '#ffffff', fontWeight: 700 }}>
-                            {customerType === 'b2b' ? 'شركات B2B' : 'أفراد B2C'}
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={12}><Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} /></Grid>
-
-                        {/* Direct Interests */}
-                        <Grid item xs={12}>
-                          <Typography variant="caption" sx={{ color: '#e2e8f0', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                            1. اهتمامات مباشرة في مدير الإعلانات (Direct Interests):
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {auditResult.targeting?.interests?.map((int, i) => (
-                              <Chip key={i} size="small" label={int} sx={{ bgcolor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 700 }} />
-                            ))}
-                          </Box>
-                        </Grid>
-
-                        {/* Lateral Interests based on Pain Point */}
-                        <Grid item xs={12}>
-                          <Typography variant="caption" sx={{ color: '#34d399', fontWeight: 800, display: 'block', mb: 0.5 }}>
-                            2. اهتمامات متقاطعة سرية مبنية على حل المشكلة (Lateral Interests):
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {auditResult.targeting?.lateralInterests?.map((lat, i) => (
-                              <Chip key={i} size="small" label={lat} sx={{ bgcolor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', fontWeight: 800 }} />
-                            ))}
-                          </Box>
-                        </Grid>
-
-                        {/* Behaviors driven by Price Point */}
-                        <Grid item xs={12}>
-                          <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 800, display: 'block', mb: 0.5 }}>
-                            3. السلوكيات الشرائية المناسبة للفئة السعرية (Behaviors):
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {auditResult.targeting?.behaviors?.map((beh, i) => (
-                              <Chip key={i} size="small" label={beh} sx={{ bgcolor: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', fontWeight: 800 }} />
-                            ))}
-                          </Box>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Box sx={{ p: 2, borderRadius: '12px', bgcolor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', mt: 1 }}>
-                            <Typography variant="caption" sx={{ color: '#fbbf24', fontWeight: 700, display: 'block', mb: 0.5 }}>
-                              💡 سر خبير الميديا باير لهذا الاستهداف:
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: '#fde68a', lineHeight: 1.6 }}>
-                              {auditResult.targeting?.industrySecret}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Card>
-
-                    {renderTechnicalSosBanner('ضبط البيكسل ومدير الإعلانات وهيكل الاستهداف')}
-                  </Stack>
-                )}
+                {/* TAB 2: 3-Tier Advanced Targeting & 72-Hour Testing Matrix */}
+                {activeResultTab === 2 && renderAdvancedThreeTierTargeting()}
 
                 {/* TAB 3: Automatic A/B Testing Generator */}
                 {activeResultTab === 3 && (
