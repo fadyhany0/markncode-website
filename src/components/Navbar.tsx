@@ -255,6 +255,33 @@ const Navbar: React.FC = () => {
             MarknCode Bot for Doctor
           </Button>
         </Box>
+
+        {/* Links & Socials Page (Mobile Drawer) */}
+        <Box sx={{ mb: 2 }}>
+          <Button
+            fullWidth
+            onClick={() => {
+              navigate('/links');
+              handleDrawerToggle();
+            }}
+            sx={{
+              py: 1.1,
+              px: 2,
+              borderRadius: '14px',
+              border: '1.5px solid rgba(37, 99, 235, 0.35)',
+              color: '#2563eb',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              textTransform: 'none',
+              bgcolor: 'rgba(37, 99, 235, 0.04)',
+              '&:hover': {
+                bgcolor: 'rgba(37, 99, 235, 0.1)',
+              },
+            }}
+          >
+            روابطنا وقنوات التواصل (Links) 🔗
+          </Button>
+        </Box>
       </List>
 
       {/* Drawer Auth Footer (Always clean and spacious, NEVER overlapping) */}

@@ -29,6 +29,7 @@ import {
   FormControlLabel,
   InputAdornment,
   CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -56,6 +57,13 @@ import {
   Google as GoogleIcon,
   Notifications as NotificationsIcon,
   CloudSync as CloudSyncIcon,
+  Visibility as VisibilityIcon,
+  ContentCopy as ContentCopyIcon,
+  Share as ShareIcon,
+  Facebook as FacebookIcon,
+  Instagram as InstagramIcon,
+  Language as WebsiteIcon,
+  Phone as PhoneIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -86,6 +94,12 @@ import {
   exportFullWebsiteBackup,
   importWebsiteBackup,
 } from '../services/adminSettingsService';
+import {
+  getLandingAnalytics,
+  resetLandingAnalytics,
+  getFormattedAnalyticsReport,
+  LandingAnalyticsData,
+} from '../services/landingAnalyticsService';
 
 const AdminPayments: React.FC = () => {
   const { user, signOut, signInWithGoogle } = useAuth();
@@ -123,6 +137,7 @@ const AdminPayments: React.FC = () => {
   const [usersList, setUsersList] = useState<ManagedUser[]>([]);
   const [inquiriesList, setInquiriesList] = useState<SiteInquiry[]>([]);
   const [campaignLogs, setCampaignLogs] = useState<SavedCampaignLog[]>([]);
+  const [landingAnalytics, setLandingAnalytics] = useState<LandingAnalyticsData>(getLandingAnalytics);
 
   // Payment Orders Tab States
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -208,6 +223,7 @@ const AdminPayments: React.FC = () => {
       setCampaignLogs(Array.isArray(camps) ? camps : []);
       const currentSettings = getSiteSettings();
       setSiteSettings(currentSettings);
+      setLandingAnalytics(getLandingAnalytics());
 
       if (isManual) {
         setSnackbarMsg('✅ تمت مزامنة السحابة بنجاح وتحديث كافة الطلبات!');
@@ -236,7 +252,16 @@ const AdminPayments: React.FC = () => {
       bcSettings.onmessage = () => refreshAllData();
     } catch (e) {}
 
-    const handleStorage = () => refreshAllData();
+    let bcLanding: BroadcastChannel | null = null;
+    try {
+      bcLanding = new BroadcastChannel('mnc_landing_analytics_sync');
+      bcLanding.onmessage = () => setLandingAnalytics(getLandingAnalytics());
+    } catch (e) {}
+
+    const handleStorage = () => {
+      refreshAllData();
+      setLandingAnalytics(getLandingAnalytics());
+    };
     window.addEventListener('storage', handleStorage);
 
     // Auto-refresh interval every 3 seconds for real-time order tracking
@@ -247,6 +272,7 @@ const AdminPayments: React.FC = () => {
       window.removeEventListener('storage', handleStorage);
       if (bc) bc.close();
       if (bcSettings) bcSettings.close();
+      if (bcLanding) bcLanding.close();
     };
   }, []);
 
@@ -997,6 +1023,32 @@ const AdminPayments: React.FC = () => {
               </Typography>
             </Card>
           </Grid>
+
+          {/* Card 7: Landing Page Visitors */}
+          <Grid item xs={12} sm={6} md={4} lg={2}>
+            <Card
+              onClick={() => setActiveTab(7)}
+              sx={{
+                p: 2.5,
+                borderRadius: '20px',
+                bgcolor: 'rgba(15, 23, 42, 0.85)',
+                border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': { transform: 'translateY(-2px)', borderColor: '#38bdf8' },
+              }}
+            >
+              <Typography variant="caption" sx={{ color: '#38bdf8', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                👁️ زوار اللاندنج بيج
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 900, color: '#ffffff' }}>
+                {landingAnalytics.totalVisits} زيارة
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                {landingAnalytics.todayVisits} اليوم • {landingAnalytics.uniqueVisitors} فريدين
+              </Typography>
+            </Card>
+          </Grid>
         </Grid>
 
         {/* Modern Tabs Bar */}
@@ -1038,6 +1090,7 @@ const AdminPayments: React.FC = () => {
             <Tab icon={<CampaignIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`🚀 حملات الـ AI (${campaignLogs.length})`} />
             <Tab icon={<DoctorIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`🩺 طلبات العيادات (${inquiriesList.length})`} />
             <Tab icon={<SettingsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="⚙️ الأمان والنسخ الاحتياطي" />
+            <Tab icon={<VisibilityIcon sx={{ fontSize: 20 }} />} iconPosition="start" label={`📈 زوار اللاندنج (${landingAnalytics.totalVisits})`} />
           </Tabs>
         </Box>
 
@@ -2702,6 +2755,567 @@ const AdminPayments: React.FC = () => {
                 </Button>
               </Stack>
             </Card>
+          </Stack>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 7: LANDING PAGE VISITOR ANALYTICS                          */}
+        {/* ============================================================== */}
+        {activeTab === 7 && (
+          <Stack spacing={3}>
+            {/* Header & Quick Action Buttons */}
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: '24px',
+                bgcolor: 'rgba(15, 23, 42, 0.9)',
+                border: '1.5px solid rgba(56, 189, 248, 0.35)',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: { xs: 'flex-start', md: 'center' },
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 900, color: '#ffffff' }}>
+                      إحصائيات وتحليلات لاندنج بيج MarknCode 📈
+                    </Typography>
+                    <Chip
+                      label="تتبع لحظي ⚡"
+                      size="small"
+                      sx={{ bgcolor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontWeight: 800 }}
+                    />
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
+                    تتبع فوري ومفصل لكل زائر يدخل الصفحة، مصادر الزيارات (فيسبوك، إنستجرام)، ونقرات الأزرار.
+                  </Typography>
+                </Box>
+
+                <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      const report = getFormattedAnalyticsReport(landingAnalytics);
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(report);
+                      }
+                      showToast('📋 تم نسخ تقرير زوار اللاندنج بيج بنجاح وجاهز للإرسال على واتساب!');
+                    }}
+                    startIcon={<ContentCopyIcon />}
+                    sx={{
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      fontWeight: 800,
+                    }}
+                  >
+                    نسخ تقرير لواتساب 📋
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={() => window.open('/links', '_blank')}
+                    startIcon={<LaunchIcon />}
+                    sx={{
+                      borderRadius: '12px',
+                      borderColor: 'rgba(56, 189, 248, 0.4)',
+                      color: '#38bdf8',
+                      fontWeight: 700,
+                      '&:hover': { bgcolor: 'rgba(56, 189, 248, 0.1)' },
+                    }}
+                  >
+                    فتح اللاندنج بيج ↗
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      const url = `${window.location.origin}/links`;
+                      if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(url);
+                      }
+                      showToast('🔗 تم نسخ رابط اللاندنج بيج للمشاركة!');
+                    }}
+                    startIcon={<ShareIcon />}
+                    sx={{
+                      borderRadius: '12px',
+                      borderColor: 'rgba(255,255,255,0.2)',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                    }}
+                  >
+                    نسخ الرابط 🔗
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => {
+                      if (window.confirm('هل أنت متأكد من تصفير إحصائيات اللاندنج بيج والبدء من جديد؟')) {
+                        resetLandingAnalytics();
+                        setLandingAnalytics(getLandingAnalytics());
+                        showToast('🔄 تم إعادة تعيين إحصائيات اللاندنج بيج بنجاح.');
+                      }
+                    }}
+                    startIcon={<RefreshIcon />}
+                    sx={{ borderRadius: '12px', fontWeight: 700 }}
+                  >
+                    تصفير الإحصائيات 🔄
+                  </Button>
+                </Stack>
+              </Box>
+            </Card>
+
+            {/* Metrics Overview 4-Cards */}
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    p: 3,
+                    borderRadius: '20px',
+                    bgcolor: 'rgba(15, 23, 42, 0.85)',
+                    border: '1.5px solid rgba(37, 99, 235, 0.35)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#93c5fd', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                    👥 إجمالي الزيارات
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, color: '#ffffff', mb: 0.5 }}>
+                    {landingAnalytics.totalVisits}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                    عدد مرات فتح الصفحة
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    p: 3,
+                    borderRadius: '20px',
+                    bgcolor: 'rgba(15, 23, 42, 0.85)',
+                    border: '1.5px solid rgba(16, 185, 129, 0.35)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#6ee7b7', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                    👤 الزوار الفريدين (أشخاص حقيقيين)
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, color: '#ffffff', mb: 0.5 }}>
+                    {landingAnalytics.uniqueVisitors}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                    أجهزة/متصفحات مختلفة
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    p: 3,
+                    borderRadius: '20px',
+                    bgcolor: 'rgba(15, 23, 42, 0.85)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.35)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#fde68a', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                    📅 زيارات اليوم
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, color: '#ffffff', mb: 0.5 }}>
+                    {landingAnalytics.todayVisits}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                    زيارات مسجلة اليوم
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    p: 3,
+                    borderRadius: '20px',
+                    bgcolor: 'rgba(15, 23, 42, 0.85)',
+                    border: '1.5px solid rgba(168, 85, 247, 0.35)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#c084fc', fontWeight: 800, display: 'block', mb: 0.5 }}>
+                    ⚡ معدل النقر والتحويل (CTR)
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, color: '#ffffff', mb: 0.5 }}>
+                    {landingAnalytics.totalVisits > 0
+                      ? `${Math.min(
+                          100,
+                          Math.round(
+                            ((landingAnalytics.clicks.facebook +
+                              landingAnalytics.clicks.instagram +
+                              landingAnalytics.clicks.website +
+                              landingAnalytics.clicks.whatsapp +
+                              landingAnalytics.clicks.call +
+                              landingAnalytics.clicks.services) /
+                              landingAnalytics.totalVisits) *
+                              100
+                          )
+                        )}%`
+                      : '0%'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                    نسبة التفاعل مع الروابط
+                  </Typography>
+                </Card>
+              </Grid>
+            </Grid>
+
+            {/* Details Split: Clicks Breakdown & Traffic/Devices */}
+            <Grid container spacing={3}>
+              {/* Left Column: Link Clicks Breakdown */}
+              <Grid item xs={12} md={7}>
+                <Card
+                  sx={{
+                    p: 3,
+                    borderRadius: '22px',
+                    bgcolor: 'rgba(15, 23, 42, 0.85)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    height: '100%',
+                  }}
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 900, color: '#ffffff', mb: 2 }}>
+                    🎯 تفاصيل النقرات على الروابط وقنوات التواصل:
+                  </Typography>
+
+                  <Stack spacing={2.5}>
+                    {/* Facebook */}
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <FacebookIcon sx={{ color: '#1877F2', fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#ffffff' }}>
+                            صفحة فيسبوك الرسمية
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900, color: '#93c5fd' }}>
+                          {landingAnalytics.clicks.facebook} نقرة
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          landingAnalytics.totalVisits > 0
+                            ? Math.min(100, (landingAnalytics.clicks.facebook / landingAnalytics.totalVisits) * 100)
+                            : 0
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          bgcolor: 'rgba(255,255,255,0.06)',
+                          '& .MuiLinearProgress-bar': { bgcolor: '#1877F2' },
+                        }}
+                      />
+                    </Box>
+
+                    {/* Instagram */}
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <InstagramIcon sx={{ color: '#E1306C', fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#ffffff' }}>
+                            حساب إنستجرام الرسمي
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900, color: '#fca5a5' }}>
+                          {landingAnalytics.clicks.instagram} نقرة
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          landingAnalytics.totalVisits > 0
+                            ? Math.min(100, (landingAnalytics.clicks.instagram / landingAnalytics.totalVisits) * 100)
+                            : 0
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          bgcolor: 'rgba(255,255,255,0.06)',
+                          '& .MuiLinearProgress-bar': {
+                            background: 'linear-gradient(90deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)',
+                          },
+                        }}
+                      />
+                    </Box>
+
+                    {/* Website */}
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <WebsiteIcon sx={{ color: '#06b6d4', fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#ffffff' }}>
+                            الموقع الرسمي الكامل (MarknCode.com)
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900, color: '#67e8f9' }}>
+                          {landingAnalytics.clicks.website} نقرة
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          landingAnalytics.totalVisits > 0
+                            ? Math.min(100, (landingAnalytics.clicks.website / landingAnalytics.totalVisits) * 100)
+                            : 0
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          bgcolor: 'rgba(255,255,255,0.06)',
+                          '& .MuiLinearProgress-bar': { bgcolor: '#06b6d4' },
+                        }}
+                      />
+                    </Box>
+
+                    {/* WhatsApp */}
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <WhatsAppIcon sx={{ color: '#25D366', fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#ffffff' }}>
+                            محادثات واتساب الفورية
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900, color: '#86efac' }}>
+                          {landingAnalytics.clicks.whatsapp} محادثة
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          landingAnalytics.totalVisits > 0
+                            ? Math.min(100, (landingAnalytics.clicks.whatsapp / landingAnalytics.totalVisits) * 100)
+                            : 0
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          bgcolor: 'rgba(255,255,255,0.06)',
+                          '& .MuiLinearProgress-bar': { bgcolor: '#25D366' },
+                        }}
+                      />
+                    </Box>
+
+                    {/* Phone Calls */}
+                    <Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.8 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <PhoneIcon sx={{ color: '#38bdf8', fontSize: 20 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#ffffff' }}>
+                            المكالمات الهاتفية المباشرة
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 900, color: '#38bdf8' }}>
+                          {landingAnalytics.clicks.call} مكالمة
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={
+                          landingAnalytics.totalVisits > 0
+                            ? Math.min(100, (landingAnalytics.clicks.call / landingAnalytics.totalVisits) * 100)
+                            : 0
+                        }
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          bgcolor: 'rgba(255,255,255,0.06)',
+                          '& .MuiLinearProgress-bar': { bgcolor: '#38bdf8' },
+                        }}
+                      />
+                    </Box>
+                  </Stack>
+                </Card>
+              </Grid>
+
+              {/* Right Column: Traffic Sources & Devices */}
+              <Grid item xs={12} md={5}>
+                <Stack spacing={3}>
+                  {/* Traffic Sources */}
+                  <Card
+                    sx={{
+                      p: 3,
+                      borderRadius: '22px',
+                      bgcolor: 'rgba(15, 23, 42, 0.85)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#ffffff', mb: 2 }}>
+                      🌐 مصادر الزيارات (من أين يدخلون؟):
+                    </Typography>
+
+                    <Stack spacing={1.5}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
+                          🔵 من فيسبوك (Facebook)
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={`${landingAnalytics.referrerStats.facebook} زيارة`}
+                          sx={{ bgcolor: 'rgba(24, 119, 242, 0.2)', color: '#93c5fd', fontWeight: 800 }}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
+                          📸 من إنستجرام (Instagram)
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={`${landingAnalytics.referrerStats.instagram} زيارة`}
+                          sx={{ bgcolor: 'rgba(225, 48, 108, 0.2)', color: '#fca5a5', fontWeight: 800 }}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
+                          🔗 دخول مباشر (Direct Link)
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={`${landingAnalytics.referrerStats.direct} زيارة`}
+                          sx={{ bgcolor: 'rgba(56, 189, 248, 0.2)', color: '#7dd3fc', fontWeight: 800 }}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
+                          🌐 من داخل الموقع (MarknCode)
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={`${landingAnalytics.referrerStats.website} زيارة`}
+                          sx={{ bgcolor: 'rgba(16, 185, 129, 0.2)', color: '#86efac', fontWeight: 800 }}
+                        />
+                      </Box>
+                    </Stack>
+                  </Card>
+
+                  {/* Device Types */}
+                  <Card
+                    sx={{
+                      p: 3,
+                      borderRadius: '22px',
+                      bgcolor: 'rgba(15, 23, 42, 0.85)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#ffffff', mb: 2 }}>
+                      📱 نوع أجهزة الزوار:
+                    </Typography>
+
+                    <Grid container spacing={2} sx={{ textAlign: 'center' }}>
+                      <Grid item xs={4}>
+                        <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: 'rgba(56, 189, 248, 0.1)' }}>
+                          <Typography variant="h5" sx={{ fontWeight: 900, color: '#38bdf8' }}>
+                            {landingAnalytics.deviceStats.mobile}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                            موبايل 📱
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: 'rgba(168, 85, 247, 0.1)' }}>
+                          <Typography variant="h5" sx={{ fontWeight: 900, color: '#c084fc' }}>
+                            {landingAnalytics.deviceStats.desktop}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                            كمبيوتر 💻
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Box sx={{ p: 1.5, borderRadius: '14px', bgcolor: 'rgba(16, 185, 129, 0.1)' }}>
+                          <Typography variant="h5" sx={{ fontWeight: 900, color: '#34d399' }}>
+                            {landingAnalytics.deviceStats.tablet}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#cbd5e1' }}>
+                            تابلت 📟
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Card>
+                </Stack>
+              </Grid>
+            </Grid>
+
+            {/* Recent Visits Table */}
+            {landingAnalytics.recentVisits.length > 0 && (
+              <Card
+                sx={{
+                  p: 3,
+                  borderRadius: '22px',
+                  bgcolor: 'rgba(15, 23, 42, 0.85)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 900, color: '#ffffff', mb: 2 }}>
+                  🕒 سجل أحدث الزيارات للاندنج بيج:
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.03)' }}>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 800 }}>الوقت والتاريخ</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 800 }}>الجهاز</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 800 }}>المتصفح</TableCell>
+                        <TableCell sx={{ color: '#94a3b8', fontWeight: 800 }}>المصدر</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {landingAnalytics.recentVisits.slice(0, 10).map((v) => (
+                        <TableRow key={v.id} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
+                          <TableCell sx={{ color: '#f8fafc', fontSize: '0.85rem' }}>
+                            {new Date(v.timestamp).toLocaleString('ar-EG')}
+                          </TableCell>
+                          <TableCell sx={{ color: '#cbd5e1', fontSize: '0.85rem' }}>
+                            {v.device === 'mobile' ? 'موبايل 📱' : v.device === 'desktop' ? 'كمبيوتر 💻' : 'تابلت 📟'}
+                          </TableCell>
+                          <TableCell sx={{ color: '#cbd5e1', fontSize: '0.85rem' }}>{v.browser}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={v.referrer}
+                              sx={{
+                                bgcolor:
+                                  v.referrer === 'facebook'
+                                    ? 'rgba(24, 119, 242, 0.2)'
+                                    : v.referrer === 'instagram'
+                                    ? 'rgba(225, 48, 108, 0.2)'
+                                    : 'rgba(56, 189, 248, 0.2)',
+                                color:
+                                  v.referrer === 'facebook'
+                                    ? '#93c5fd'
+                                    : v.referrer === 'instagram'
+                                    ? '#fca5a5'
+                                    : '#7dd3fc',
+                                fontWeight: 700,
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Card>
+            )}
           </Stack>
         )}
       </Container>

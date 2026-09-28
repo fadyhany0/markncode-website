@@ -19,6 +19,7 @@ import NotFound from './pages/NotFound';
 import BotForDoctor from './pages/BotForDoctor';
 import CreateYourAd from './pages/CreateYourAd';
 import AdminPayments from './pages/AdminPayments';
+import LandingPage from './pages/LandingPage';
 import ScrollToTop from './components/ScrollToTop';
 import BackToTopFab from './components/BackToTopFab';
 import SecurityGuard from './components/SecurityGuard';
@@ -336,6 +337,13 @@ const AppContent: React.FC = () => {
         <Route path="/ai-ad-studio" element={<CreateYourAd />} />
 
         <Route path="/our-services" element={<OurServices />} />
+
+        {/* Landing Page & Bio Links */}
+        <Route path="/links" element={<LandingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/bio" element={<LandingPage />} />
+        <Route path="/connect" element={<LandingPage />} />
+        <Route path="/welcome" element={<LandingPage />} />
 
         {/* Auth Routes */}
         <Route path="/signin" element={<SignIn />} />

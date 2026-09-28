@@ -504,6 +504,7 @@ export function exportFullWebsiteBackup(): string {
     inquiries: getAllInquiries(),
     campaignLogs: getSavedCampaignLogs(),
     paymentOrders: JSON.parse(localStorage.getItem('mnc_all_orders_registry') || '[]'),
+    landingAnalytics: JSON.parse(localStorage.getItem('mnc_landing_page_analytics_v1') || '{}'),
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -532,6 +533,9 @@ export function importWebsiteBackup(jsonString: string): { success: boolean; mes
     }
     if (Array.isArray(data.paymentOrders)) {
       localStorage.setItem('mnc_all_orders_registry', JSON.stringify(data.paymentOrders));
+    }
+    if (data.landingAnalytics && typeof data.landingAnalytics === 'object') {
+      localStorage.setItem('mnc_landing_page_analytics_v1', JSON.stringify(data.landingAnalytics));
     }
 
     broadcastSettingsSync();

@@ -118,6 +118,7 @@ const Footer: React.FC = () => {
             <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
               {[
                 { text: 'Home', href: '/' },
+                { text: 'روابطنا الرسمية (Landing Page) 🔗', href: '/links', isHighlight: true },
                 { text: 'اعمل إعلانك بنفسك 🚀', href: '/create-your-ad', isHighlight: true },
                 { text: 'Bot for Doctor 🤖', href: '/bot-for-doctor', isHighlight: true },
                 { text: 'Services', href: '/services' },
