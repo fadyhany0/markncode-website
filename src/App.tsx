@@ -289,6 +289,20 @@ const MaintenanceScreen: React.FC<{ message: string; phone: string; email: strin
   );
 };
 
+const HomeRouteWrapper: React.FC = () => {
+  const location = useLocation();
+  const search = (location.search || '').toLowerCase();
+  if (
+    search.includes('ref=qr') ||
+    search.includes('source=qr') ||
+    search.includes('utm_source=qr') ||
+    search.includes('qr=')
+  ) {
+    return <Navigate to={`/links${location.search}`} replace />;
+  }
+  return <Home />;
+};
+
 const AppContent: React.FC = () => {
   const location = useLocation();
   const [siteSettings, setSiteSettings] = React.useState(() => getSiteSettings());
@@ -344,6 +358,7 @@ const AppContent: React.FC = () => {
         <Route path="/bio" element={<LandingPage />} />
         <Route path="/connect" element={<LandingPage />} />
         <Route path="/welcome" element={<LandingPage />} />
+        <Route path="/qr" element={<Navigate to="/links?ref=qr" replace />} />
 
         {/* Auth Routes */}
         <Route path="/signin" element={<SignIn />} />
@@ -364,7 +379,7 @@ const AppContent: React.FC = () => {
         <Route path="/admin/payments" element={<AdminPayments />} />
 
         {/* Redirects */}
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<HomeRouteWrapper />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />

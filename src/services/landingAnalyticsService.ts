@@ -1,5 +1,9 @@
 // Landing Page Visitor Tracking & Analytics Service for MarkNCode
-// Tracks total visits, unique visitors, daily counts, device breakdown, referrers, and button clicks.
+// Real-time Visitor & QR Code Tracking with Dual-Layer Cloud Synchronization
+// Enables cross-device live counting: mobile phones, QR scans, laptops, and admin dashboard sync seamlessly.
+
+import { analytics } from '../firebase';
+import { logEvent } from 'firebase/analytics';
 
 export interface LandingPageVisitLog {
   id: string;
@@ -34,6 +38,7 @@ export interface LandingAnalyticsData {
     website: number;
     tiktok: number;
     google: number;
+    qr: number;
     other: number;
   };
   clicks: {
@@ -56,6 +61,11 @@ const STORAGE_KEY_VISITOR_ID = 'mnc_visitor_uuid_v1';
 const STORAGE_KEY_SESSION_VISIT = 'mnc_last_landing_visit_timestamp';
 const SYNC_CHANNEL_NAME = 'mnc_landing_analytics_sync';
 
+// Cloud Synchronization Endpoints
+const CLOUD_OBJECT_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0e9ec0c7f3866';
+const CLOUD_KV_BASE = 'https://keyvalue.immanuel.co/api/KeyVal';
+const CLOUD_KV_APP_KEY = 'hr4hcm6c';
+
 // Default initial state
 const DEFAULT_ANALYTICS: LandingAnalyticsData = {
   totalVisits: 0,
@@ -74,6 +84,7 @@ const DEFAULT_ANALYTICS: LandingAnalyticsData = {
     website: 0,
     tiktok: 0,
     google: 0,
+    qr: 0,
     other: 0,
   },
   clicks: {
@@ -91,7 +102,7 @@ const DEFAULT_ANALYTICS: LandingAnalyticsData = {
   dailyVisits: {},
 };
 
-// Helper: Broadcast sync across browser tabs
+// Helper: Broadcast sync across browser tabs on the same device
 function broadcastSync(): void {
   try {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -128,10 +139,11 @@ function detectBrowser(): string {
   return 'Browser';
 }
 
-// Helper: Detect Referrer or Source
+// Helper: Detect Referrer or Source (Includes Dedicated QR Code detection)
 function detectReferrerSource(customSource?: string): keyof LandingAnalyticsData['referrerStats'] {
   if (customSource) {
     const s = customSource.toLowerCase();
+    if (s.includes('qr')) return 'qr';
     if (s.includes('fb') || s.includes('face')) return 'facebook';
     if (s.includes('insta') || s.includes('ig')) return 'instagram';
     if (s.includes('tik')) return 'tiktok';
@@ -141,15 +153,27 @@ function detectReferrerSource(customSource?: string): keyof LandingAnalyticsData
 
   if (typeof window === 'undefined') return 'direct';
 
-  // Check URL query parameters
+  // Check URL query parameters for QR code indicators or UTM tags
   const params = new URLSearchParams(window.location.search);
-  const utmSource = params.get('utm_source')?.toLowerCase() || params.get('ref')?.toLowerCase() || params.get('src')?.toLowerCase();
+  const utmSource =
+    params.get('utm_source')?.toLowerCase() ||
+    params.get('ref')?.toLowerCase() ||
+    params.get('src')?.toLowerCase() ||
+    params.get('source')?.toLowerCase() ||
+    params.get('origin')?.toLowerCase();
+
   if (utmSource) {
+    if (utmSource.includes('qr')) return 'qr';
     if (utmSource.includes('fb') || utmSource.includes('facebook')) return 'facebook';
     if (utmSource.includes('insta') || utmSource.includes('instagram')) return 'instagram';
     if (utmSource.includes('tiktok')) return 'tiktok';
     if (utmSource.includes('google')) return 'google';
     if (utmSource.includes('site') || utmSource.includes('markncode')) return 'website';
+  }
+
+  // Parameter boolean check (?qr or ?qrcode)
+  if (params.has('qr') || params.has('qrcode') || window.location.search.toLowerCase().includes('qr')) {
+    return 'qr';
   }
 
   // Check document.referrer
@@ -165,15 +189,14 @@ function detectReferrerSource(customSource?: string): keyof LandingAnalyticsData
 }
 
 /**
- * Get current analytics data
+ * Get current analytics data from local storage
  */
 export function getLandingAnalytics(): LandingAnalyticsData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_ANALYTICS);
     if (!raw) return { ...DEFAULT_ANALYTICS };
     const parsed = JSON.parse(raw);
-    
-    // Ensure all required properties exist
+
     return {
       totalVisits: Number(parsed.totalVisits || 0),
       uniqueVisitors: Number(parsed.uniqueVisitors || 0),
@@ -191,6 +214,7 @@ export function getLandingAnalytics(): LandingAnalyticsData {
         website: Number(parsed.referrerStats?.website || 0),
         tiktok: Number(parsed.referrerStats?.tiktok || 0),
         google: Number(parsed.referrerStats?.google || 0),
+        qr: Number(parsed.referrerStats?.qr || 0),
         other: Number(parsed.referrerStats?.other || 0),
       },
       clicks: {
@@ -210,6 +234,217 @@ export function getLandingAnalytics(): LandingAnalyticsData {
   } catch (e) {
     return { ...DEFAULT_ANALYTICS };
   }
+}
+
+/**
+ * Push new visit details to Cloud Hub asynchronously
+ * Ensures visitor data from any mobile phone or QR scan reaches the Admin dashboard
+ */
+async function pushVisitToCloud(
+  visitLog: LandingPageVisitLog,
+  isNewUnique: boolean,
+  referrer: keyof LandingAnalyticsData['referrerStats'],
+  device: 'mobile' | 'desktop' | 'tablet'
+): Promise<void> {
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // 1. Log to Google Analytics 4 if active
+  try {
+    if (analytics) {
+      logEvent(analytics as any, 'landing_page_visit', {
+        source: referrer,
+        device_category: device,
+        is_qr: referrer === 'qr',
+      });
+    }
+  } catch (e) {}
+
+  // 2. Push to Primary Cloud Object Store
+  try {
+    const res = await fetch(CLOUD_OBJECT_URL, { cache: 'no-store' });
+    if (res.ok) {
+      const remote = await res.json();
+      const data: LandingAnalyticsData = remote.data || { ...DEFAULT_ANALYTICS };
+
+      data.totalVisits = (Number(data.totalVisits) || 0) + 1;
+      if (isNewUnique) {
+        data.uniqueVisitors = (Number(data.uniqueVisitors) || 0) + 1;
+      }
+      data.todayVisits = (Number(data.todayVisits) || 0) + 1;
+
+      data.deviceStats = data.deviceStats || { mobile: 0, desktop: 0, tablet: 0 };
+      data.deviceStats[device] = (Number(data.deviceStats[device]) || 0) + 1;
+
+      data.referrerStats = data.referrerStats || { ...DEFAULT_ANALYTICS.referrerStats };
+      data.referrerStats[referrer] = (Number(data.referrerStats[referrer]) || 0) + 1;
+
+      data.dailyVisits = data.dailyVisits || {};
+      data.dailyVisits[todayStr] = (Number(data.dailyVisits[todayStr]) || 0) + 1;
+
+      data.recentVisits = [visitLog, ...(data.recentVisits || [])].slice(0, 50);
+      data.lastUpdated = new Date().toISOString();
+
+      await fetch(CLOUD_OBJECT_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'markncode_official_landing_analytics_v1',
+          data,
+        }),
+      });
+    }
+  } catch (e) {
+    console.warn('Primary cloud visit sync note:', e);
+  }
+
+  // 3. Increment Atomic KV Counter for high-speed cross-device backup
+  try {
+    if (referrer === 'qr') {
+      const getQr = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits`);
+      const qrVal = await getQr.text();
+      const currentQr = parseInt(qrVal.replace(/"/g, '').trim(), 10) || 0;
+      await fetch(
+        `${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits/${currentQr + 1}`,
+        { method: 'POST', headers: { 'Content-Length': '0' } }
+      );
+    }
+  } catch (e) {}
+}
+
+/**
+ * Push button click to Cloud Hub asynchronously
+ */
+async function pushClickToCloud(
+  buttonName: 'facebook' | 'instagram' | 'website' | 'whatsapp' | 'call' | 'services' | 'bot_doctor' | 'ad_tool',
+  label: string
+): Promise<void> {
+  try {
+    if (analytics) {
+      logEvent(analytics as any, 'landing_click', {
+        button_name: buttonName,
+        label,
+      });
+    }
+  } catch (e) {}
+
+  try {
+    const res = await fetch(CLOUD_OBJECT_URL, { cache: 'no-store' });
+    if (res.ok) {
+      const remote = await res.json();
+      const data: LandingAnalyticsData = remote.data || { ...DEFAULT_ANALYTICS };
+
+      data.clicks = data.clicks || { ...DEFAULT_ANALYTICS.clicks };
+      data.clicks[buttonName] = (Number(data.clicks[buttonName]) || 0) + 1;
+
+      const clickLog: LandingPageClickLog = {
+        id: `clk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        buttonName,
+        label,
+      };
+      data.recentClicks = [clickLog, ...(data.recentClicks || [])].slice(0, 50);
+      data.lastUpdated = new Date().toISOString();
+
+      await fetch(CLOUD_OBJECT_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'markncode_official_landing_analytics_v1',
+          data,
+        }),
+      });
+    }
+  } catch (e) {}
+}
+
+/**
+ * Fetch and synchronize analytics data from Cloud Hub across all devices
+ * Called by the Admin Dashboard to guarantee visitors from mobile QR scans appear immediately
+ */
+export async function syncLandingAnalyticsFromCloud(): Promise<LandingAnalyticsData> {
+  const local = getLandingAnalytics();
+
+  try {
+    const res = await fetch(CLOUD_OBJECT_URL, { cache: 'no-store' });
+    if (!res.ok) return local;
+
+    const remote = await res.json();
+    const cloud: LandingAnalyticsData = remote.data;
+    if (!cloud || typeof cloud !== 'object') return local;
+
+    // Check optional atomic QR counter
+    let atomicQr = 0;
+    try {
+      const getQr = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits`);
+      if (getQr.ok) {
+        const text = await getQr.text();
+        atomicQr = parseInt(text.replace(/"/g, '').trim(), 10) || 0;
+      }
+    } catch (e) {}
+
+    // Merge logic: Take highest count so counts never regress across devices
+    const merged: LandingAnalyticsData = {
+      totalVisits: Math.max(local.totalVisits, Number(cloud.totalVisits) || 0),
+      uniqueVisitors: Math.max(local.uniqueVisitors, Number(cloud.uniqueVisitors) || 0),
+      todayVisits: Math.max(local.todayVisits, Number(cloud.todayVisits) || 0),
+      lastUpdated: new Date().toISOString(),
+      deviceStats: {
+        mobile: Math.max(local.deviceStats.mobile, Number(cloud.deviceStats?.mobile) || 0),
+        desktop: Math.max(local.deviceStats.desktop, Number(cloud.deviceStats?.desktop) || 0),
+        tablet: Math.max(local.deviceStats.tablet, Number(cloud.deviceStats?.tablet) || 0),
+      },
+      referrerStats: {
+        facebook: Math.max(local.referrerStats.facebook, Number(cloud.referrerStats?.facebook) || 0),
+        instagram: Math.max(local.referrerStats.instagram, Number(cloud.referrerStats?.instagram) || 0),
+        direct: Math.max(local.referrerStats.direct, Number(cloud.referrerStats?.direct) || 0),
+        website: Math.max(local.referrerStats.website, Number(cloud.referrerStats?.website) || 0),
+        tiktok: Math.max(local.referrerStats.tiktok, Number(cloud.referrerStats?.tiktok) || 0),
+        google: Math.max(local.referrerStats.google, Number(cloud.referrerStats?.google) || 0),
+        qr: Math.max(local.referrerStats.qr, Number(cloud.referrerStats?.qr) || 0, atomicQr),
+        other: Math.max(local.referrerStats.other, Number(cloud.referrerStats?.other) || 0),
+      },
+      clicks: {
+        facebook: Math.max(local.clicks.facebook, Number(cloud.clicks?.facebook) || 0),
+        instagram: Math.max(local.clicks.instagram, Number(cloud.clicks?.instagram) || 0),
+        website: Math.max(local.clicks.website, Number(cloud.clicks?.website) || 0),
+        whatsapp: Math.max(local.clicks.whatsapp, Number(cloud.clicks?.whatsapp) || 0),
+        call: Math.max(local.clicks.call, Number(cloud.clicks?.call) || 0),
+        services: Math.max(local.clicks.services, Number(cloud.clicks?.services) || 0),
+        bot_doctor: Math.max(local.clicks.bot_doctor, Number(cloud.clicks?.bot_doctor) || 0),
+        ad_tool: Math.max(local.clicks.ad_tool, Number(cloud.clicks?.ad_tool) || 0),
+      },
+      recentVisits: mergeRecentVisits(local.recentVisits, cloud.recentVisits || []),
+      recentClicks: mergeRecentClicks(local.recentClicks, cloud.recentClicks || []),
+      dailyVisits: { ...(cloud.dailyVisits || {}), ...local.dailyVisits },
+    };
+
+    localStorage.setItem(STORAGE_KEY_ANALYTICS, JSON.stringify(merged));
+    broadcastSync();
+    return merged;
+  } catch (e) {
+    console.warn('Cloud sync offline or skipped, using local data:', e);
+    return local;
+  }
+}
+
+// Helper: Merge visit logs uniquely by ID
+function mergeRecentVisits(local: LandingPageVisitLog[], remote: LandingPageVisitLog[]): LandingPageVisitLog[] {
+  const map = new Map<string, LandingPageVisitLog>();
+  for (const v of local) if (v?.id) map.set(v.id, v);
+  for (const v of remote) if (v?.id) map.set(v.id, v);
+  return Array.from(map.values())
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 50);
+}
+
+// Helper: Merge click logs uniquely by ID
+function mergeRecentClicks(local: LandingPageClickLog[], remote: LandingPageClickLog[]): LandingPageClickLog[] {
+  const map = new Map<string, LandingPageClickLog>();
+  for (const c of local) if (c?.id) map.set(c.id, c);
+  for (const c of remote) if (c?.id) map.set(c.id, c);
+  return Array.from(map.values())
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 50);
 }
 
 /**
@@ -242,11 +477,10 @@ export function recordLandingVisit(customSource?: string): LandingAnalyticsData 
   const browser = detectBrowser();
   const referrer = detectReferrerSource(customSource);
 
-  // Update counts
+  // Update counts locally
   const newTotalVisits = current.totalVisits + 1;
   const newUniqueVisitors = current.uniqueVisitors + (isNewUniqueVisitor ? 1 : 0);
-  
-  // Calculate today visits accurately from dailyVisits dictionary
+
   const previousTodayVisits = current.dailyVisits[todayStr] || 0;
   const newTodayVisits = previousTodayVisits + 1;
   const updatedDaily = {
@@ -292,11 +526,14 @@ export function recordLandingVisit(customSource?: string): LandingAnalyticsData 
     broadcastSync();
   } catch (e) {}
 
+  // Push visit asynchronously to the Cloud Hub so Admin Dashboard sees it from any device
+  pushVisitToCloud(newVisitLog, isNewUniqueVisitor, referrer, device);
+
   return updated;
 }
 
 /**
- * Record a button click on the landing page
+ * Record a button/link click on the landing page
  */
 export function recordLandingClick(
   buttonName: 'facebook' | 'instagram' | 'website' | 'whatsapp' | 'call' | 'services' | 'bot_doctor' | 'ad_tool',
@@ -330,28 +567,44 @@ export function recordLandingClick(
     localStorage.setItem(STORAGE_KEY_ANALYTICS, JSON.stringify(updated));
     broadcastSync();
   } catch (e) {}
+
+  // Push click asynchronously to Cloud Hub
+  pushClickToCloud(buttonName, label);
 }
 
 /**
  * Reset all landing analytics (Admin only)
  */
-export function resetLandingAnalytics(): void {
+export async function resetLandingAnalytics(): Promise<void> {
   localStorage.setItem(STORAGE_KEY_ANALYTICS, JSON.stringify(DEFAULT_ANALYTICS));
   broadcastSync();
+
+  try {
+    await fetch(CLOUD_OBJECT_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'markncode_official_landing_analytics_v1',
+        data: DEFAULT_ANALYTICS,
+      }),
+    });
+    await fetch(`${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits/0`, {
+      method: 'POST',
+      headers: { 'Content-Length': '0' },
+    });
+  } catch (e) {}
 }
 
 /**
  * Format a ready-to-share WhatsApp summary report
  */
 export function getFormattedAnalyticsReport(data: LandingAnalyticsData): string {
-  const mobilePercent = data.totalVisits > 0 
-    ? Math.round((data.deviceStats.mobile / data.totalVisits) * 100) 
-    : 0;
-  const desktopPercent = data.totalVisits > 0 
-    ? Math.round((data.deviceStats.desktop / data.totalVisits) * 100) 
-    : 0;
+  const mobilePercent =
+    data.totalVisits > 0 ? Math.round((data.deviceStats.mobile / data.totalVisits) * 100) : 0;
+  const desktopPercent =
+    data.totalVisits > 0 ? Math.round((data.deviceStats.desktop / data.totalVisits) * 100) : 0;
 
-  const totalClicks = 
+  const totalClicks =
     data.clicks.facebook +
     data.clicks.instagram +
     data.clicks.website +
@@ -359,9 +612,8 @@ export function getFormattedAnalyticsReport(data: LandingAnalyticsData): string 
     data.clicks.call +
     data.clicks.services;
 
-  const conversionRate = data.totalVisits > 0 
-    ? ((totalClicks / data.totalVisits) * 100).toFixed(1) 
-    : '0.0';
+  const conversionRate =
+    data.totalVisits > 0 ? ((totalClicks / data.totalVisits) * 100).toFixed(1) : '0.0';
 
   return `📊 تقرير إحصائيات لاندنج بيج MarknCode Agency:
 ━━━━━━━━━━━━━━━━━
@@ -375,10 +627,11 @@ export function getFormattedAnalyticsReport(data: LandingAnalyticsData): string 
 • الكمبيوتر: ${desktopPercent}% (${data.deviceStats.desktop})
 
 🌐 مصادر الزيارات:
-• فيسبوك: ${data.referrerStats.facebook}
-• إنستجرام: ${data.referrerStats.instagram}
-• دخول مباشر: ${data.referrerStats.direct}
-• الموقع الرسمي: ${data.referrerStats.website}
+• 📱 مسح كود QR: ${data.referrerStats.qr || 0}
+• 🔵 فيسبوك: ${data.referrerStats.facebook}
+• 📸 إنستجرام: ${data.referrerStats.instagram}
+• 🔗 دخول مباشر: ${data.referrerStats.direct}
+• 🌐 الموقع الرسمي: ${data.referrerStats.website}
 
 🔥 النقرات على الروابط:
 • 🔵 فيسبوك: ${data.clicks.facebook}

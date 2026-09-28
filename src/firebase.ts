@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAnalytics, isSupported } from 'firebase/analytics';
+import { getAnalytics, isSupported, Analytics } from 'firebase/analytics';
 import { getAuth, GoogleAuthProvider } from '@firebase/auth';
 
 // Firebase configuration
@@ -26,7 +26,7 @@ googleProvider.setCustomParameters({
 });
 
 // Initialize Firebase Analytics only in production
-let analytics = null;
+let analytics: Analytics | null = null;
 if (process.env.NODE_ENV === 'production') {
   isSupported().then(yes => {
     if (yes) {

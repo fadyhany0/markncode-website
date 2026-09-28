@@ -64,6 +64,7 @@ import {
   Instagram as InstagramIcon,
   Language as WebsiteIcon,
   Phone as PhoneIcon,
+  QrCode as QrCodeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -96,6 +97,7 @@ import {
 } from '../services/adminSettingsService';
 import {
   getLandingAnalytics,
+  syncLandingAnalyticsFromCloud,
   resetLandingAnalytics,
   getFormattedAnalyticsReport,
   LandingAnalyticsData,
@@ -224,6 +226,10 @@ const AdminPayments: React.FC = () => {
       const currentSettings = getSiteSettings();
       setSiteSettings(currentSettings);
       setLandingAnalytics(getLandingAnalytics());
+      // Asynchronously fetch cross-device cloud visitor counts from all QR scans & phones
+      syncLandingAnalyticsFromCloud().then((cloudData) => {
+        if (cloudData) setLandingAnalytics(cloudData);
+      });
 
       if (isManual) {
         setSnackbarMsg('✅ تمت مزامنة السحابة بنجاح وتحديث كافة الطلبات!');
@@ -2872,12 +2878,12 @@ const AdminPayments: React.FC = () => {
               </Box>
             </Card>
 
-            {/* Metrics Overview 4-Cards */}
-            <Grid container spacing={2.5}>
-              <Grid item xs={12} sm={6} md={3}>
+            {/* Metrics Overview 5-Cards */}
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <Card
                   sx={{
-                    p: 3,
+                    p: 2.5,
                     borderRadius: '20px',
                     bgcolor: 'rgba(15, 23, 42, 0.85)',
                     border: '1.5px solid rgba(37, 99, 235, 0.35)',
@@ -2896,10 +2902,10 @@ const AdminPayments: React.FC = () => {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <Card
                   sx={{
-                    p: 3,
+                    p: 2.5,
                     borderRadius: '20px',
                     bgcolor: 'rgba(15, 23, 42, 0.85)',
                     border: '1.5px solid rgba(16, 185, 129, 0.35)',
@@ -2907,7 +2913,7 @@ const AdminPayments: React.FC = () => {
                   }}
                 >
                   <Typography variant="caption" sx={{ color: '#6ee7b7', fontWeight: 800, display: 'block', mb: 0.5 }}>
-                    👤 الزوار الفريدين (أشخاص حقيقيين)
+                    👤 الزوار الفريدين
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 900, color: '#ffffff', mb: 0.5 }}>
                     {landingAnalytics.uniqueVisitors}
@@ -2918,10 +2924,33 @@ const AdminPayments: React.FC = () => {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <Card
                   sx={{
-                    p: 3,
+                    p: 2.5,
+                    borderRadius: '20px',
+                    bgcolor: 'rgba(234, 179, 8, 0.12)',
+                    border: '1.5px solid rgba(234, 179, 8, 0.5)',
+                    boxShadow: '0 0 25px rgba(234, 179, 8, 0.15)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ color: '#fde047', fontWeight: 900, display: 'block', mb: 0.5 }}>
+                    📱 مسح كود QR
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 900, color: '#fef08a', mb: 0.5 }}>
+                    {landingAnalytics.referrerStats?.qr || 0}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#fef9c3', fontWeight: 700 }}>
+                    دخلوا عبر مسح الـ QR
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={2.4}>
+                <Card
+                  sx={{
+                    p: 2.5,
                     borderRadius: '20px',
                     bgcolor: 'rgba(15, 23, 42, 0.85)',
                     border: '1.5px solid rgba(245, 158, 11, 0.35)',
@@ -2940,10 +2969,10 @@ const AdminPayments: React.FC = () => {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={2.4}>
                 <Card
                   sx={{
-                    p: 3,
+                    p: 2.5,
                     borderRadius: '20px',
                     bgcolor: 'rgba(15, 23, 42, 0.85)',
                     border: '1.5px solid rgba(168, 85, 247, 0.35)',
@@ -2951,7 +2980,7 @@ const AdminPayments: React.FC = () => {
                   }}
                 >
                   <Typography variant="caption" sx={{ color: '#c084fc', fontWeight: 800, display: 'block', mb: 0.5 }}>
-                    ⚡ معدل النقر والتحويل (CTR)
+                    ⚡ معدل التفاعل (CTR)
                   </Typography>
                   <Typography variant="h4" sx={{ fontWeight: 900, color: '#ffffff', mb: 0.5 }}>
                     {landingAnalytics.totalVisits > 0
@@ -2976,6 +3005,117 @@ const AdminPayments: React.FC = () => {
                 </Card>
               </Grid>
             </Grid>
+
+            {/* QR Code Campaign Generator & Live Scanner Hub */}
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: '24px',
+                bgcolor: 'rgba(15, 23, 42, 0.95)',
+                border: '1.5px solid rgba(234, 179, 8, 0.45)',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.6), 0 0 25px rgba(234, 179, 8, 0.12)',
+              }}
+            >
+              <Grid container spacing={3} alignItems="center">
+                <Grid item xs={12} sm={4} md={3} sx={{ textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      bgcolor: '#ffffff',
+                      borderRadius: '18px',
+                      display: 'inline-block',
+                      boxShadow: '0 8px 25px rgba(0,0,0,0.4)',
+                    }}
+                  >
+                    <img
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fmarkncode.com%2Flinks%3Fref%3Dqr"
+                      alt="MarknCode Links Official QR Code"
+                      style={{ width: '100%', maxWidth: 160, height: 'auto', display: 'block', borderRadius: 8 }}
+                    />
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={8} md={9}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 900, color: '#fef08a' }}>
+                      📱 كود الـ QR المعتمد للاندنج بيج مع المزامنة السحابية الفورية
+                    </Typography>
+                    <Chip
+                      label={`${landingAnalytics.referrerStats?.qr || 0} مسح مسجل سحابياً ⚡`}
+                      size="small"
+                      sx={{ bgcolor: 'rgba(234, 179, 8, 0.25)', color: '#fef08a', fontWeight: 900 }}
+                    />
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#cbd5e1', mb: 2, lineHeight: 1.8 }}>
+                    هذا الكود مربوط بمزامنة سحابية مركزية (Cloud Sync). عند مسحه من أي هاتف في العالم، يسجل الزيارة فوراً ويحدث عدادك في لوحة الإدارة حتى لو كان الزائر من هاتف مختلف وجهازك كمبيوتر.
+                  </Typography>
+
+                  <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      onClick={() => {
+                        const qrUrl = 'https://markncode.com/links?ref=qr';
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                          navigator.clipboard.writeText(qrUrl);
+                        }
+                        showToast('📋 تم نسخ رابط الـ QR التتبعي المباشر!');
+                      }}
+                      startIcon={<ContentCopyIcon />}
+                      sx={{
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)',
+                        color: '#000',
+                        fontWeight: 800,
+                      }}
+                    >
+                      نسخ رابط الـ QR التتبعي 📋
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        const a = document.createElement('a');
+                        a.href = 'https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=https%3A%2F%2Fmarkncode.com%2Flinks%3Fref%3Dqr';
+                        a.download = 'markncode_landing_qr.png';
+                        a.target = '_blank';
+                        a.click();
+                      }}
+                      startIcon={<QrCodeIcon />}
+                      sx={{
+                        borderRadius: '12px',
+                        borderColor: 'rgba(234, 179, 8, 0.5)',
+                        color: '#fef08a',
+                        fontWeight: 700,
+                        '&:hover': { bgcolor: 'rgba(234, 179, 8, 0.1)' },
+                      }}
+                    >
+                      تحميل صورة كود QR عالية الدقة (HD PNG) ⬇️
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      onClick={async () => {
+                        setIsRefreshingCloud(true);
+                        const fresh = await syncLandingAnalyticsFromCloud();
+                        setLandingAnalytics(fresh);
+                        setIsRefreshingCloud(false);
+                        showToast('⚡ تم تحديث ومزامنة إحصائيات الزوار سحابياً!');
+                      }}
+                      startIcon={<RefreshIcon />}
+                      sx={{
+                        borderRadius: '12px',
+                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                        color: '#38bdf8',
+                        fontWeight: 700,
+                        '&:hover': { bgcolor: 'rgba(56, 189, 248, 0.1)' },
+                      }}
+                    >
+                      تحديث المزامنة السحابية فوراً 🔄
+                    </Button>
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Card>
 
             {/* Details Split: Clicks Breakdown & Traffic/Devices */}
             <Grid container spacing={3}>
@@ -3162,6 +3302,16 @@ const AdminPayments: React.FC = () => {
                     </Typography>
 
                     <Stack spacing={1.5}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ color: '#fef08a', fontWeight: 800 }}>
+                          📱 مسح كود QR (QR Code Scans)
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={`${landingAnalytics.referrerStats?.qr || 0} مسح`}
+                          sx={{ bgcolor: 'rgba(234, 179, 8, 0.25)', color: '#fef08a', fontWeight: 900 }}
+                        />
+                      </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography variant="body2" sx={{ color: '#cbd5e1' }}>
                           🔵 من فيسبوك (Facebook)

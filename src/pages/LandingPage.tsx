@@ -40,7 +40,7 @@ import {
   AdminPanelSettings as AdminIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getLandingAnalytics,
@@ -53,6 +53,7 @@ import { getSiteSettings, SOLE_ADMIN_EMAIL } from '../services/adminSettingsServ
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [siteSettings] = useState(() => getSiteSettings());
 
@@ -75,8 +76,9 @@ const LandingPage: React.FC = () => {
 
   // Auto-record visit on mount and listen to sync
   useEffect(() => {
-    // Record visit
-    const updated = recordLandingVisit();
+    // Record visit with search query parameter detection
+    const searchSource = location.search || (typeof window !== 'undefined' ? window.location.search : '');
+    const updated = recordLandingVisit(searchSource);
     setAnalytics(updated);
 
     // Sync across tabs

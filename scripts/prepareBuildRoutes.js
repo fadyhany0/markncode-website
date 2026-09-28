@@ -15,6 +15,7 @@ const routes = [
   'bio',
   'connect',
   'welcome',
+  'qr',
   'admin',
   'create-your-ad',
   'bot-for-doctor',
