@@ -1,6 +1,6 @@
 // Landing Page Visitor Tracking & Analytics Service for MarkNCode
-// Real-time Visitor & QR Code Tracking with Dual-Layer Cloud Synchronization
-// Enables cross-device live counting: mobile phones, QR scans, laptops, and admin dashboard sync seamlessly.
+// Real-time Visitor & QR Code Tracking with Ultra-Reliable Cloud Synchronization
+// Enables instant live cross-device counting between phones, QR scanners, and Admin dashboard.
 
 import { analytics } from '../firebase';
 import { logEvent } from 'firebase/analytics';
@@ -61,10 +61,10 @@ const STORAGE_KEY_VISITOR_ID = 'mnc_visitor_uuid_v1';
 const STORAGE_KEY_SESSION_VISIT = 'mnc_last_landing_visit_timestamp';
 const SYNC_CHANNEL_NAME = 'mnc_landing_analytics_sync';
 
-// Cloud Synchronization Endpoints
-const CLOUD_OBJECT_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0e9ec0c7f3866';
+// Cloud Synchronization Configuration (keyvalue.immanuel.co - unlimited, zero-auth, high-speed KV store)
 const CLOUD_KV_BASE = 'https://keyvalue.immanuel.co/api/KeyVal';
 const CLOUD_KV_APP_KEY = 'hr4hcm6c';
+const COMPACT_KEY = 'mnc_landing_stats_compact_v1';
 
 // Default initial state
 const DEFAULT_ANALYTICS: LandingAnalyticsData = {
@@ -102,6 +102,78 @@ const DEFAULT_ANALYTICS: LandingAnalyticsData = {
   dailyVisits: {},
 };
 
+interface CompactCloudStats {
+  totalVisits: number;
+  qrScans: number;
+  uniqueVisitors: number;
+  todayVisits: number;
+  mobile: number;
+  desktop: number;
+  tablet: number;
+  fb: number;
+  ig: number;
+  direct: number;
+  web: number;
+  clkFb: number;
+  clkIg: number;
+  clkWeb: number;
+  clkWa: number;
+  clkCall: number;
+  clkSrv: number;
+  lastScanTs: number;
+}
+
+// Compact serializer for URL-safe cloud transmission
+function packCompactStats(s: CompactCloudStats): string {
+  return [
+    s.totalVisits || 0,
+    s.qrScans || 0,
+    s.uniqueVisitors || 0,
+    s.todayVisits || 0,
+    s.mobile || 0,
+    s.desktop || 0,
+    s.tablet || 0,
+    s.fb || 0,
+    s.ig || 0,
+    s.direct || 0,
+    s.web || 0,
+    s.clkFb || 0,
+    s.clkIg || 0,
+    s.clkWeb || 0,
+    s.clkWa || 0,
+    s.clkCall || 0,
+    s.clkSrv || 0,
+    s.lastScanTs || Date.now(),
+  ].join('_');
+}
+
+// Compact deserializer
+function unpackCompactStats(str: string): CompactCloudStats | null {
+  if (!str) return null;
+  const p = str.split('_').map((n) => parseInt(n, 10));
+  if (p.length < 17 || isNaN(p[0])) return null;
+  return {
+    totalVisits: p[0] || 0,
+    qrScans: p[1] || 0,
+    uniqueVisitors: p[2] || 0,
+    todayVisits: p[3] || 0,
+    mobile: p[4] || 0,
+    desktop: p[5] || 0,
+    tablet: p[6] || 0,
+    fb: p[7] || 0,
+    ig: p[8] || 0,
+    direct: p[9] || 0,
+    web: p[10] || 0,
+    clkFb: p[11] || 0,
+    clkIg: p[12] || 0,
+    clkWeb: p[13] || 0,
+    clkWa: p[14] || 0,
+    clkCall: p[15] || 0,
+    clkSrv: p[16] || 0,
+    lastScanTs: p[17] || Date.now(),
+  };
+}
+
 // Helper: Broadcast sync across browser tabs on the same device
 function broadcastSync(): void {
   try {
@@ -114,7 +186,7 @@ function broadcastSync(): void {
 }
 
 // Helper: Detect Device
-function detectDevice(): 'mobile' | 'desktop' | 'tablet' {
+export function detectDevice(): 'mobile' | 'desktop' | 'tablet' {
   if (typeof window === 'undefined') return 'desktop';
   const ua = navigator.userAgent.toLowerCase();
   if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
@@ -127,7 +199,7 @@ function detectDevice(): 'mobile' | 'desktop' | 'tablet' {
 }
 
 // Helper: Detect Browser
-function detectBrowser(): string {
+export function detectBrowser(): string {
   if (typeof window === 'undefined') return 'Unknown';
   const ua = navigator.userAgent;
   if (ua.includes('Chrome') && !ua.includes('Edg')) return 'Chrome';
@@ -140,7 +212,7 @@ function detectBrowser(): string {
 }
 
 // Helper: Detect Referrer or Source (Includes Dedicated QR Code detection)
-function detectReferrerSource(customSource?: string): keyof LandingAnalyticsData['referrerStats'] {
+export function detectReferrerSource(customSource?: string): keyof LandingAnalyticsData['referrerStats'] {
   if (customSource) {
     const s = customSource.toLowerCase();
     if (s.includes('qr')) return 'qr';
@@ -237,7 +309,7 @@ export function getLandingAnalytics(): LandingAnalyticsData {
 }
 
 /**
- * Push new visit details to Cloud Hub asynchronously
+ * Push new visit details to Cloud Store
  * Ensures visitor data from any mobile phone or QR scan reaches the Admin dashboard
  */
 async function pushVisitToCloud(
@@ -246,8 +318,6 @@ async function pushVisitToCloud(
   referrer: keyof LandingAnalyticsData['referrerStats'],
   device: 'mobile' | 'desktop' | 'tablet'
 ): Promise<void> {
-  const todayStr = new Date().toISOString().slice(0, 10);
-
   // 1. Log to Google Analytics 4 if active
   try {
     if (analytics) {
@@ -259,60 +329,67 @@ async function pushVisitToCloud(
     }
   } catch (e) {}
 
-  // 2. Push to Primary Cloud Object Store
+  // 2. Update Cloud KV compact stats store
   try {
-    const res = await fetch(CLOUD_OBJECT_URL, { cache: 'no-store' });
+    const res = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/${COMPACT_KEY}`, {
+      cache: 'no-store',
+    });
+    let current: CompactCloudStats = {
+      totalVisits: 0,
+      qrScans: 0,
+      uniqueVisitors: 0,
+      todayVisits: 0,
+      mobile: 0,
+      desktop: 0,
+      tablet: 0,
+      fb: 0,
+      ig: 0,
+      direct: 0,
+      web: 0,
+      clkFb: 0,
+      clkIg: 0,
+      clkWeb: 0,
+      clkWa: 0,
+      clkCall: 0,
+      clkSrv: 0,
+      lastScanTs: Date.now(),
+    };
+
     if (res.ok) {
-      const remote = await res.json();
-      const data: LandingAnalyticsData = remote.data || { ...DEFAULT_ANALYTICS };
-
-      data.totalVisits = (Number(data.totalVisits) || 0) + 1;
-      if (isNewUnique) {
-        data.uniqueVisitors = (Number(data.uniqueVisitors) || 0) + 1;
-      }
-      data.todayVisits = (Number(data.todayVisits) || 0) + 1;
-
-      data.deviceStats = data.deviceStats || { mobile: 0, desktop: 0, tablet: 0 };
-      data.deviceStats[device] = (Number(data.deviceStats[device]) || 0) + 1;
-
-      data.referrerStats = data.referrerStats || { ...DEFAULT_ANALYTICS.referrerStats };
-      data.referrerStats[referrer] = (Number(data.referrerStats[referrer]) || 0) + 1;
-
-      data.dailyVisits = data.dailyVisits || {};
-      data.dailyVisits[todayStr] = (Number(data.dailyVisits[todayStr]) || 0) + 1;
-
-      data.recentVisits = [visitLog, ...(data.recentVisits || [])].slice(0, 50);
-      data.lastUpdated = new Date().toISOString();
-
-      await fetch(CLOUD_OBJECT_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'markncode_official_landing_analytics_v1',
-          data,
-        }),
-      });
+      const text = await res.text();
+      const clean = text.replace(/"/g, '').trim();
+      const parsed = unpackCompactStats(clean);
+      if (parsed) current = parsed;
     }
+
+    current.totalVisits += 1;
+    if (referrer === 'qr') current.qrScans += 1;
+    if (isNewUnique) current.uniqueVisitors += 1;
+    current.todayVisits += 1;
+
+    if (device === 'mobile') current.mobile += 1;
+    else if (device === 'desktop') current.desktop += 1;
+    else if (device === 'tablet') current.tablet += 1;
+
+    if (referrer === 'facebook') current.fb += 1;
+    else if (referrer === 'instagram') current.ig += 1;
+    else if (referrer === 'website') current.web += 1;
+    else if (referrer === 'direct') current.direct += 1;
+
+    current.lastScanTs = Date.now();
+
+    const packed = packCompactStats(current);
+    await fetch(`${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/${COMPACT_KEY}/${packed}`, {
+      method: 'POST',
+      body: '',
+    });
   } catch (e) {
-    console.warn('Primary cloud visit sync note:', e);
+    console.warn('Cloud visit push note:', e);
   }
-
-  // 3. Increment Atomic KV Counter for high-speed cross-device backup
-  try {
-    if (referrer === 'qr') {
-      const getQr = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits`);
-      const qrVal = await getQr.text();
-      const currentQr = parseInt(qrVal.replace(/"/g, '').trim(), 10) || 0;
-      await fetch(
-        `${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits/${currentQr + 1}`,
-        { method: 'POST', headers: { 'Content-Length': '0' } }
-      );
-    }
-  } catch (e) {}
 }
 
 /**
- * Push button click to Cloud Hub asynchronously
+ * Push button click to Cloud Store
  */
 async function pushClickToCloud(
   buttonName: 'facebook' | 'instagram' | 'website' | 'whatsapp' | 'call' | 'services' | 'bot_doctor' | 'ad_tool',
@@ -328,123 +405,93 @@ async function pushClickToCloud(
   } catch (e) {}
 
   try {
-    const res = await fetch(CLOUD_OBJECT_URL, { cache: 'no-store' });
+    const res = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/${COMPACT_KEY}`, {
+      cache: 'no-store',
+    });
     if (res.ok) {
-      const remote = await res.json();
-      const data: LandingAnalyticsData = remote.data || { ...DEFAULT_ANALYTICS };
+      const text = await res.text();
+      const clean = text.replace(/"/g, '').trim();
+      const parsed = unpackCompactStats(clean);
+      if (parsed) {
+        if (buttonName === 'facebook') parsed.clkFb += 1;
+        else if (buttonName === 'instagram') parsed.clkIg += 1;
+        else if (buttonName === 'website') parsed.clkWeb += 1;
+        else if (buttonName === 'whatsapp') parsed.clkWa += 1;
+        else if (buttonName === 'call') parsed.clkCall += 1;
+        else if (buttonName === 'services') parsed.clkSrv += 1;
 
-      data.clicks = data.clicks || { ...DEFAULT_ANALYTICS.clicks };
-      data.clicks[buttonName] = (Number(data.clicks[buttonName]) || 0) + 1;
-
-      const clickLog: LandingPageClickLog = {
-        id: `clk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        timestamp: new Date().toISOString(),
-        buttonName,
-        label,
-      };
-      data.recentClicks = [clickLog, ...(data.recentClicks || [])].slice(0, 50);
-      data.lastUpdated = new Date().toISOString();
-
-      await fetch(CLOUD_OBJECT_URL, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'markncode_official_landing_analytics_v1',
-          data,
-        }),
-      });
+        parsed.lastScanTs = Date.now();
+        const packed = packCompactStats(parsed);
+        await fetch(`${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/${COMPACT_KEY}/${packed}`, {
+          method: 'POST',
+          body: '',
+        });
+      }
     }
   } catch (e) {}
 }
 
 /**
- * Fetch and synchronize analytics data from Cloud Hub across all devices
- * Called by the Admin Dashboard to guarantee visitors from mobile QR scans appear immediately
+ * Fetch and synchronize analytics data from Cloud Store across all devices
+ * Guarantees visitors from mobile QR scans appear immediately in the Admin Dashboard
  */
 export async function syncLandingAnalyticsFromCloud(): Promise<LandingAnalyticsData> {
   const local = getLandingAnalytics();
 
   try {
-    const res = await fetch(CLOUD_OBJECT_URL, { cache: 'no-store' });
+    const res = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/${COMPACT_KEY}`, {
+      cache: 'no-store',
+    });
     if (!res.ok) return local;
 
-    const remote = await res.json();
-    const cloud: LandingAnalyticsData = remote.data;
-    if (!cloud || typeof cloud !== 'object') return local;
+    const text = await res.text();
+    const clean = text.replace(/"/g, '').trim();
+    const cloud = unpackCompactStats(clean);
+    if (!cloud) return local;
 
-    // Check optional atomic QR counter
-    let atomicQr = 0;
-    try {
-      const getQr = await fetch(`${CLOUD_KV_BASE}/GetValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits`);
-      if (getQr.ok) {
-        const text = await getQr.text();
-        atomicQr = parseInt(text.replace(/"/g, '').trim(), 10) || 0;
-      }
-    } catch (e) {}
-
-    // Merge logic: Take highest count so counts never regress across devices
+    // Merge logic: Take highest count so numbers never regress
     const merged: LandingAnalyticsData = {
-      totalVisits: Math.max(local.totalVisits, Number(cloud.totalVisits) || 0),
-      uniqueVisitors: Math.max(local.uniqueVisitors, Number(cloud.uniqueVisitors) || 0),
-      todayVisits: Math.max(local.todayVisits, Number(cloud.todayVisits) || 0),
-      lastUpdated: new Date().toISOString(),
+      totalVisits: Math.max(local.totalVisits, cloud.totalVisits),
+      uniqueVisitors: Math.max(local.uniqueVisitors, cloud.uniqueVisitors),
+      todayVisits: Math.max(local.todayVisits, cloud.todayVisits),
+      lastUpdated: cloud.lastScanTs ? new Date(cloud.lastScanTs).toISOString() : new Date().toISOString(),
       deviceStats: {
-        mobile: Math.max(local.deviceStats.mobile, Number(cloud.deviceStats?.mobile) || 0),
-        desktop: Math.max(local.deviceStats.desktop, Number(cloud.deviceStats?.desktop) || 0),
-        tablet: Math.max(local.deviceStats.tablet, Number(cloud.deviceStats?.tablet) || 0),
+        mobile: Math.max(local.deviceStats.mobile, cloud.mobile),
+        desktop: Math.max(local.deviceStats.desktop, cloud.desktop),
+        tablet: Math.max(local.deviceStats.tablet, cloud.tablet),
       },
       referrerStats: {
-        facebook: Math.max(local.referrerStats.facebook, Number(cloud.referrerStats?.facebook) || 0),
-        instagram: Math.max(local.referrerStats.instagram, Number(cloud.referrerStats?.instagram) || 0),
-        direct: Math.max(local.referrerStats.direct, Number(cloud.referrerStats?.direct) || 0),
-        website: Math.max(local.referrerStats.website, Number(cloud.referrerStats?.website) || 0),
-        tiktok: Math.max(local.referrerStats.tiktok, Number(cloud.referrerStats?.tiktok) || 0),
-        google: Math.max(local.referrerStats.google, Number(cloud.referrerStats?.google) || 0),
-        qr: Math.max(local.referrerStats.qr, Number(cloud.referrerStats?.qr) || 0, atomicQr),
-        other: Math.max(local.referrerStats.other, Number(cloud.referrerStats?.other) || 0),
+        facebook: Math.max(local.referrerStats.facebook, cloud.fb),
+        instagram: Math.max(local.referrerStats.instagram, cloud.ig),
+        direct: Math.max(local.referrerStats.direct, cloud.direct),
+        website: Math.max(local.referrerStats.website, cloud.web),
+        tiktok: local.referrerStats.tiktok || 0,
+        google: local.referrerStats.google || 0,
+        qr: Math.max(local.referrerStats.qr || 0, cloud.qrScans || 0),
+        other: local.referrerStats.other || 0,
       },
       clicks: {
-        facebook: Math.max(local.clicks.facebook, Number(cloud.clicks?.facebook) || 0),
-        instagram: Math.max(local.clicks.instagram, Number(cloud.clicks?.instagram) || 0),
-        website: Math.max(local.clicks.website, Number(cloud.clicks?.website) || 0),
-        whatsapp: Math.max(local.clicks.whatsapp, Number(cloud.clicks?.whatsapp) || 0),
-        call: Math.max(local.clicks.call, Number(cloud.clicks?.call) || 0),
-        services: Math.max(local.clicks.services, Number(cloud.clicks?.services) || 0),
-        bot_doctor: Math.max(local.clicks.bot_doctor, Number(cloud.clicks?.bot_doctor) || 0),
-        ad_tool: Math.max(local.clicks.ad_tool, Number(cloud.clicks?.ad_tool) || 0),
+        facebook: Math.max(local.clicks.facebook, cloud.clkFb),
+        instagram: Math.max(local.clicks.instagram, cloud.clkIg),
+        website: Math.max(local.clicks.website, cloud.clkWeb),
+        whatsapp: Math.max(local.clicks.whatsapp, cloud.clkWa),
+        call: Math.max(local.clicks.call, cloud.clkCall),
+        services: Math.max(local.clicks.services, cloud.clkSrv),
+        bot_doctor: local.clicks.bot_doctor || 0,
+        ad_tool: local.clicks.ad_tool || 0,
       },
-      recentVisits: mergeRecentVisits(local.recentVisits, cloud.recentVisits || []),
-      recentClicks: mergeRecentClicks(local.recentClicks, cloud.recentClicks || []),
-      dailyVisits: { ...(cloud.dailyVisits || {}), ...local.dailyVisits },
+      recentVisits: local.recentVisits || [],
+      recentClicks: local.recentClicks || [],
+      dailyVisits: local.dailyVisits || {},
     };
 
     localStorage.setItem(STORAGE_KEY_ANALYTICS, JSON.stringify(merged));
     broadcastSync();
     return merged;
   } catch (e) {
-    console.warn('Cloud sync offline or skipped, using local data:', e);
+    console.warn('Cloud sync error, using local data:', e);
     return local;
   }
-}
-
-// Helper: Merge visit logs uniquely by ID
-function mergeRecentVisits(local: LandingPageVisitLog[], remote: LandingPageVisitLog[]): LandingPageVisitLog[] {
-  const map = new Map<string, LandingPageVisitLog>();
-  for (const v of local) if (v?.id) map.set(v.id, v);
-  for (const v of remote) if (v?.id) map.set(v.id, v);
-  return Array.from(map.values())
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 50);
-}
-
-// Helper: Merge click logs uniquely by ID
-function mergeRecentClicks(local: LandingPageClickLog[], remote: LandingPageClickLog[]): LandingPageClickLog[] {
-  const map = new Map<string, LandingPageClickLog>();
-  for (const c of local) if (c?.id) map.set(c.id, c);
-  for (const c of remote) if (c?.id) map.set(c.id, c);
-  return Array.from(map.values())
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 50);
 }
 
 /**
@@ -455,9 +502,9 @@ export function recordLandingVisit(customSource?: string): LandingAnalyticsData 
   const now = Date.now();
   const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-  // Session debounce check (don't recount within 15 seconds on the same tab)
+  // Session debounce check (don't recount within 10 seconds on the same tab)
   const lastVisit = sessionStorage.getItem(STORAGE_KEY_SESSION_VISIT);
-  if (lastVisit && now - Number(lastVisit) < 15000) {
+  if (lastVisit && now - Number(lastVisit) < 10000) {
     return getLandingAnalytics();
   }
   sessionStorage.setItem(STORAGE_KEY_SESSION_VISIT, String(now));
@@ -526,7 +573,7 @@ export function recordLandingVisit(customSource?: string): LandingAnalyticsData 
     broadcastSync();
   } catch (e) {}
 
-  // Push visit asynchronously to the Cloud Hub so Admin Dashboard sees it from any device
+  // Push visit asynchronously to the Cloud Store so Admin Dashboard sees it from any device
   pushVisitToCloud(newVisitLog, isNewUniqueVisitor, referrer, device);
 
   return updated;
@@ -568,7 +615,7 @@ export function recordLandingClick(
     broadcastSync();
   } catch (e) {}
 
-  // Push click asynchronously to Cloud Hub
+  // Push click asynchronously to Cloud
   pushClickToCloud(buttonName, label);
 }
 
@@ -580,17 +627,30 @@ export async function resetLandingAnalytics(): Promise<void> {
   broadcastSync();
 
   try {
-    await fetch(CLOUD_OBJECT_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'markncode_official_landing_analytics_v1',
-        data: DEFAULT_ANALYTICS,
-      }),
-    });
-    await fetch(`${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/mnc_cloud_qr_visits/0`, {
+    const emptyStats: CompactCloudStats = {
+      totalVisits: 0,
+      qrScans: 0,
+      uniqueVisitors: 0,
+      todayVisits: 0,
+      mobile: 0,
+      desktop: 0,
+      tablet: 0,
+      fb: 0,
+      ig: 0,
+      direct: 0,
+      web: 0,
+      clkFb: 0,
+      clkIg: 0,
+      clkWeb: 0,
+      clkWa: 0,
+      clkCall: 0,
+      clkSrv: 0,
+      lastScanTs: Date.now(),
+    };
+    const packed = packCompactStats(emptyStats);
+    await fetch(`${CLOUD_KV_BASE}/UpdateValue/${CLOUD_KV_APP_KEY}/${COMPACT_KEY}/${packed}`, {
       method: 'POST',
-      headers: { 'Content-Length': '0' },
+      body: '',
     });
   } catch (e) {}
 }
